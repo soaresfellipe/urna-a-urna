@@ -33,5 +33,9 @@ class CruzadoError(PipelineError):
     """Falha na etapa de voto cruzado: config sem pares ou banco ausente."""
 
 
+class RankingError(PipelineError):
+    """Falha na etapa de ranking: banco ausente ou achado malformado."""
+
+
 class EmitirError(PipelineError):
     """Falha na etapa de emissão: banco/manifesto ausente ou saída ilegível."""

@@ -19,6 +19,8 @@ from pipeline.erros import ConfigError, PipelineError
 from pipeline.ingest import ingerir
 from pipeline.integridade import conferir as conferir_integridade
 from pipeline.integridade import relatar as relatar_integridade
+from pipeline.ranking import calcular as calcular_ranking
+from pipeline.ranking import relatar as relatar_ranking
 from pipeline.totais import conferir as conferir_totais
 from pipeline.totais import relatar as relatar_totais
 from pipeline.totais import validar as validar_totais
@@ -153,6 +155,49 @@ def _executar_cruzado(
     estado["resultado_cruzado"] = resultado
 
 
+def _executar_ranking(
+    args: argparse.Namespace, config: dict[str, object], estado: dict[str, object]
+) -> None:
+    # Aproveita os resultados das etapas já executadas nesta invocação; os
+    # que faltam são conferidos aqui mesmo (o ranking precisa dos três).
+    resultado = estado.get("resultado_integridade")
+    if resultado is None:
+        resultado = conferir_integridade(
+            uf=str(args.uf),
+            turno=int(args.turno),
+            ano=int(args.ano),
+            data_dir=Path(args.data_dir),
+            config=config,
+        )
+    resultado_div = estado.get("resultado_divergencia")
+    if resultado_div is None:
+        resultado_div = conferir_divergencia(
+            uf=str(args.uf),
+            turno=int(args.turno),
+            ano=int(args.ano),
+            data_dir=Path(args.data_dir),
+            config=config,
+        )
+    resultado_cruzado = estado.get("resultado_cruzado")
+    if resultado_cruzado is None:
+        resultado_cruzado = conferir_cruzado(
+            uf=str(args.uf),
+            turno=int(args.turno),
+            ano=int(args.ano),
+            data_dir=Path(args.data_dir),
+            config=config,
+        )
+    ranqueado = calcular_ranking(
+        [resultado, resultado_div, resultado_cruzado],
+        uf=str(args.uf),
+        ano=int(args.ano),
+        turno=int(args.turno),
+        data_dir=Path(args.data_dir),
+    )
+    relatar_ranking(ranqueado)
+    estado["ranking"] = ranqueado
+
+
 def _executar_emitir(
     args: argparse.Namespace, config: dict[str, object], estado: dict[str, object]
 ) -> None:
@@ -217,6 +262,7 @@ def _executar(etapas: list[str], args: argparse.Namespace, config: dict[str, obj
         "integridade": _executar_integridade,
         "divergencia": _executar_divergencia,
         "cruzado": _executar_cruzado,
+        "ranking": _executar_ranking,
         "emitir": _executar_emitir,
     }
     for etapa in etapas:

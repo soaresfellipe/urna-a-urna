@@ -51,13 +51,13 @@ def test_config_invalido_falha_com_codigo_nao_zero_e_mensagem_clara(tmp_path, ca
     assert "ausente" in erro
 
 
-def test_etapa_nao_implementada_falha_de_forma_orientada(capsys):
-    # 'cruzado' já existe; a próxima etapa pendente é o ranking combinado.
-    codigo = main(["--etapas", "ranking"])
+def test_etapa_ranking_sem_banco_falha_de_forma_orientada(tmp_path, capsys):
+    # O ranking agora existe: sem banco ele aponta a etapa pré-requisito.
+    codigo = main(["--etapas", "ranking", "--data-dir", str(tmp_path)])
     assert codigo != 0
     erro = capsys.readouterr().err
     assert "ranking" in erro
-    assert "implementada" in erro
+    assert "ingest" in erro
 
 
 def test_etapa_integridade_sem_banco_falha_de_forma_orientada(tmp_path, capsys):

@@ -2,10 +2,11 @@
 
 Grava três famílias de arquivos a partir dos resultados das etapas:
 
-- ``sinalizacoes.json`` — lista ranqueada de seções atípicas. Neste estágio
-  do projeto os achados vêm só do módulo 1 (integridade); cada achado já
-  carrega módulo, regra, valores, frase explicativa e campos ``z``/``q``
-  nulos, que o ranking combinado (pipeline/ranking.py) preenche depois.
+- ``sinalizacoes.json`` — lista ranqueada de seções atípicas: os achados dos
+  três módulos (integridade, divergência, voto cruzado) combinados pelo
+  ranking (pipeline/ranking.py), agrupados por seção, com severidade (menor
+  q-valor / maior z) e ordenação q ascendente, z descendente; cada achado
+  carrega a frase explicativa com os valores observado e de referência.
 - ``zonas/{zona}.json`` — números por seção para a página de detalhe: por
   cargo de análise, aptos/comparecimento, válidos, brancos, nulos, votos e
   percentuais por votável (BU e totalização lado a lado), resultado da
@@ -34,6 +35,7 @@ from pathlib import Path
 
 import duckdb
 
+from pipeline import ranking
 from pipeline.erros import EmitirError
 from pipeline.ingest import CARGO_GOVERNADOR, CARGO_PRESIDENTE
 from pipeline.totais import validar as validar_totais
@@ -125,49 +127,13 @@ def _contagens_por_modulo(
 
 
 # ---------------------------------------------------------------------------
-# sinalizacoes.json — lista ranqueada
+# sinalizacoes.json — lista ranqueada (ranking combinado, §4.7)
 # ---------------------------------------------------------------------------
 
 
 def _frase_achado(achado: dict[str, object]) -> str:
-    """Frase explicativa do achado com os valores observado e de referência."""
-    regra = str(achado["regra"])
-    cargo = str(achado["cargo"])
-    observado = _numero(int(achado["valor_observado"]))  # type: ignore[arg-type]
-    esperado = _numero(int(achado["valor_esperado"]))  # type: ignore[arg-type]
-    if regra == "R1":
-        return (
-            f"{cargo}: soma dos votos ({observado}) difere do comparecimento do "
-            f"próprio cargo ({esperado}) — regra R1."
-        )
-    if regra == "R2":
-        return f"{cargo}: comparecimento ({observado}) excede os aptos ({esperado}) — regra R2."
-    if regra == "R3":
-        votavel = achado["votavel"]
-        nome = achado["votavel_nome"]
-        return (
-            f"{cargo}: votável {votavel} ({nome}) registra {observado} no Boletim de "
-            f"Urna e {esperado} na totalização — regra R3."
-        )
-    return f"{cargo}: observado {observado} contra esperado {esperado} — regra {regra}."
-
-
-def _achado_publico(achado: dict[str, object]) -> dict[str, object]:
-    """Achado no formato do sinalizacoes.json (ranking combinado completa z/q)."""
-    return {
-        "modulo": "integridade",
-        "regra": achado["regra"],
-        "cargo_id": achado["cargo_id"],
-        "cargo": achado["cargo"],
-        "votavel": achado.get("votavel"),
-        "votavel_nome": achado.get("votavel_nome"),
-        "valor_observado": achado["valor_observado"],
-        "valor_esperado": achado["valor_esperado"],
-        "excecao_aplicada": achado.get("excecao_aplicada"),
-        "frase": _frase_achado(achado),
-        "z": None,
-        "q": None,
-    }
+    """Frase explicativa do achado (movida para pipeline/ranking.py)."""
+    return ranking.frase_explicativa(achado)
 
 
 def _construir_sinalizacoes(
@@ -176,39 +142,29 @@ def _construir_sinalizacoes(
     uf: str,
     ano: int,
     turno: int,
+    resultado_divergencia: dict[str, object] | None = None,
+    resultado_cruzado: dict[str, object] | None = None,
     locais_por_secao: dict[tuple[int, int], dict[str, object]],
 ) -> dict[str, object]:
-    """Lista ranqueada agrupada por seção (uma entrada por seção com achados)."""
-    por_secao: dict[tuple[int, int], dict[str, object]] = {}
-    for achado in resultado_integridade["achados"]:  # type: ignore[union-attr]
-        chave = (int(achado["zona"]), int(achado["secao"]))  # type: ignore[arg-type]
-        entrada = por_secao.setdefault(
-            chave,
-            {"zona": chave[0], "secao": chave[1], "achados": []},
-        )
-        entrada["achados"].append(_achado_publico(achado))  # type: ignore[union-attr]
-    sinalizacoes: list[dict[str, object]] = []
-    for (zona, secao), entrada in sorted(por_secao.items()):
-        local = locais_por_secao.get((zona, secao), {})
-        sinalizacoes.append(
-            {
-                "municipio_id": local.get("municipio_id"),
-                "municipio": local.get("municipio"),
-                "zona": zona,
-                "secao": secao,
-                "local_id": local.get("local_id"),
-                "local": local.get("local"),
-                "endereco": local.get("endereco"),
-                "achados": entrada["achados"],
-            }
-        )
-    return {
-        "uf": uf,
-        "ano": ano,
-        "turno": turno,
-        "total_secoes": int(resultado_integridade["secoes_analisadas"]),  # type: ignore[arg-type]
-        "sinalizacoes": sinalizacoes,
-    }
+    """Lista ranqueada global (ranking combinado): agrupa achados por seção,
+    calcula a severidade (menor q / maior z) e ordena q ascendente, z
+    descendente — ver pipeline/ranking.py."""
+    return ranking.ranquear(
+        ranking.achados_dos_resultados(
+            resultado_integridade,
+            resultado_divergencia,
+            resultado_cruzado,
+        ),
+        uf=uf,
+        ano=ano,
+        turno=turno,
+        locais_por_secao=locais_por_secao,
+        total_secoes=ranking.total_de_secoes(
+            resultado_integridade,
+            resultado_divergencia,
+            resultado_cruzado,
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -499,6 +455,8 @@ def emitir(
         uf=uf,
         ano=ano,
         turno=turno,
+        resultado_divergencia=resultado_divergencia,
+        resultado_cruzado=resultado_cruzado,
         locais_por_secao=locais_por_secao,
     )
     checksums_fontes = _checksums_fontes(data_dir)
