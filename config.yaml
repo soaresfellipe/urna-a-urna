@@ -1,0 +1,76 @@
+# Urna a Urna — configuração (única fonte de verdade).
+# Todos os limiares estatísticos, pares do voto cruzado, multiplicadores e
+# referências vivem aqui; o código nunca fixa esses valores.
+
+# Pleito de referência e defaults do CLI (--uf, --ano, --turno).
+pleito:
+  uf: DF
+  ano: 2022
+  turno: 1
+
+# Pastas de trabalho e de saída (defaults do CLI --data-dir e --out-dir).
+caminhos:
+  data_dir: data
+  out_dir: public/data
+
+# Limiares por módulo de análise.
+limiares:
+  # Módulo 2 — divergência em relação às demais seções do grupo de referência.
+  divergencia:
+    z_robusto_min: 5.0        # (p - mediana) / (1.4826 * MAD) do grupo leave-one-out
+    z_tamanho_min: 6.0        # |p - mediana| / erro binomial sqrt(m(1-m)/n)
+    dif_minima_pp: 8.0        # diferença mínima em pontos percentuais
+    fdr_alpha: 0.01           # Benjamini-Hochberg sobre todos os testes do módulo
+    min_secoes_local: 6       # abaixo disso, referência cai para a zona
+    min_secoes_zona: 30       # abaixo disso, a seção fica não analisada
+    min_votos_validos_secao: 30  # seções menores não são analisadas no módulo
+  # Módulo 3 — voto cruzado (diferença entre percentuais dos pares).
+  cruzado:
+    z_robusto_min: 5.0
+    z_tamanho_min: 6.0
+    dif_minima_pp: 8.0
+    fdr_alpha: 0.01
+
+# Multiplicador de votos por eleitor, por ano e cargo (senador com múltiplas
+# vagas: 2018 = 2; 2022 = 1). Cargos não listados usam multiplicador 1.
+multiplicador_votos_por_eleitor:
+  2022:
+    senador: 1
+
+# Pares aprovados pelo dono para o módulo 3 — o módulo roda exclusivamente
+# estes pares; toda sinalização identifica o par pelo rótulo.
+voto_cruzado:
+  pares:
+    - rotulo: "Bolsonaro (22) × Ibaneis (15)"
+      presidente:
+        numero: 22
+        nome: "Bolsonaro"
+      governador:
+        numero: 15
+        nome: "Ibaneis Rocha"
+    - rotulo: "Lula (13) × Grass (43)"
+      presidente:
+        numero: 13
+        nome: "Lula"
+      governador:
+        numero: 43
+        nome: "Leandro Grass"
+
+# Nível de referência das comparações locais (módulos 2 e 3), com fallback.
+referencia:
+  nivel: municipio  # no DF o município é único e degenerado
+  fallback: zona    # quando a dimensão é degenerada ou insuficiente
+
+# Particionamento da emissão em public/data (guardas de tamanho na emissão).
+particao:
+  nivel: zona            # base do particionamento dos arquivos de detalhe
+  sinalizacoes: unico    # 'unico' ou 'por_zona' quando exceder o limite
+  tamanho_max_mb: 20     # ao exceder, o emissor quebra o arquivo pelo nível
+
+# Fontes de dados no portal aberto do TSE (CKAN) — descoberta por metadados.
+# '{ano}' é substituído pelo ano do pleito.
+fontes:
+  ckan_base_url: "https://dadosabertos.tse.jus.br"
+  conjuntos:
+    boletim_de_urna: "resultados-{ano}-boletim-de-urna"
+    totalizacao: "resultados-{ano}"
