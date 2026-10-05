@@ -1,4 +1,6 @@
 data/
+# JSONs emitidos pelo pipeline (regenerados a cada execução; nunca commitados)
+public/data/
 dist/
 .venv/
 __pycache__/

@@ -9,6 +9,8 @@ from pathlib import Path
 
 from pipeline.config import carregar_config
 from pipeline.download import baixar_fontes
+from pipeline.emitir import emitir as emitir_arquivos
+from pipeline.emitir import relatar as relatar_emissao
 from pipeline.erros import ConfigError, PipelineError
 from pipeline.ingest import ingerir
 from pipeline.integridade import conferir as conferir_integridade
@@ -76,7 +78,9 @@ def _resolver_etapas(parser: argparse.ArgumentParser, texto: str) -> list[str]:
     return [nome for nome in ETAPAS if nome in pedidas]
 
 
-def _executar_download(args: argparse.Namespace, config: dict[str, object]) -> None:
+def _executar_download(
+    args: argparse.Namespace, config: dict[str, object], estado: dict[str, object]
+) -> None:
     baixar_fontes(
         config,
         uf=str(args.uf),
@@ -86,19 +90,26 @@ def _executar_download(args: argparse.Namespace, config: dict[str, object]) -> N
     )
 
 
-def _executar_ingest(args: argparse.Namespace, config: dict[str, object]) -> None:
+def _executar_ingest(
+    args: argparse.Namespace, config: dict[str, object], estado: dict[str, object]
+) -> None:
     ingerir(uf=str(args.uf), turno=int(args.turno), data_dir=Path(args.data_dir))
 
 
-def _executar_totais(args: argparse.Namespace, config: dict[str, object]) -> None:
+def _executar_totais(
+    args: argparse.Namespace, config: dict[str, object], estado: dict[str, object]
+) -> None:
     relatorio = conferir_totais(
         uf=str(args.uf), turno=int(args.turno), data_dir=Path(args.data_dir)
     )
     relatar_totais(relatorio)
     validar_totais(relatorio)
+    estado["relatorio_totais"] = relatorio
 
 
-def _executar_integridade(args: argparse.Namespace, config: dict[str, object]) -> None:
+def _executar_integridade(
+    args: argparse.Namespace, config: dict[str, object], estado: dict[str, object]
+) -> None:
     resultado = conferir_integridade(
         uf=str(args.uf),
         turno=int(args.turno),
@@ -107,24 +118,62 @@ def _executar_integridade(args: argparse.Namespace, config: dict[str, object]) -
         config=config,
     )
     relatar_integridade(resultado)
+    estado["resultado_integridade"] = resultado
+
+
+def _executar_emitir(
+    args: argparse.Namespace, config: dict[str, object], estado: dict[str, object]
+) -> None:
+    # A emissão espelha a conferência de totais e os achados do módulo 1 no
+    # index.json; quando as etapas rodaram nesta mesma invocação os
+    # resultados são reutilizados — os números do terminal e do JSON são
+    # exatamente os mesmos.
+    relatorio = estado.get("relatorio_totais")
+    if relatorio is None:
+        relatorio = conferir_totais(
+            uf=str(args.uf), turno=int(args.turno), data_dir=Path(args.data_dir)
+        )
+        validar_totais(relatorio)
+    resultado = estado.get("resultado_integridade")
+    if resultado is None:
+        resultado = conferir_integridade(
+            uf=str(args.uf),
+            turno=int(args.turno),
+            ano=int(args.ano),
+            data_dir=Path(args.data_dir),
+            config=config,
+        )
+    resumo = emitir_arquivos(
+        uf=str(args.uf),
+        ano=int(args.ano),
+        turno=int(args.turno),
+        data_dir=Path(args.data_dir),
+        out_dir=Path(args.out_dir),
+        config=config,
+        relatorio_totais=relatorio,
+        resultado_integridade=resultado,
+    )
+    relatar_emissao(resumo)
 
 
 def _executar(etapas: list[str], args: argparse.Namespace, config: dict[str, object]) -> None:
+    estado: dict[str, object] = {}
     acoes = {
         "download": _executar_download,
         "ingest": _executar_ingest,
         "totais": _executar_totais,
         "integridade": _executar_integridade,
+        "emitir": _executar_emitir,
     }
     for etapa in etapas:
         acao = acoes.get(etapa)
         if acao is None:
             raise PipelineError(
                 f"Etapa '{etapa}' ainda não implementada neste estágio do projeto — "
-                "as próximas features do pipeline acrescentam ingestão, módulos, "
-                "ranking e emissão."
+                "as próximas features do pipeline acrescentam divergência, voto "
+                "cruzado, ranking e o fechamento do encadeamento."
             )
-        acao(args, config)
+        acao(args, config, estado)
 
 
 def main(argv: Sequence[str] | None = None, caminho_config: str | None = None) -> int:
