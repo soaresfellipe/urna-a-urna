@@ -52,11 +52,19 @@ def test_config_invalido_falha_com_codigo_nao_zero_e_mensagem_clara(tmp_path, ca
 
 
 def test_etapa_nao_implementada_falha_de_forma_orientada(capsys):
-    codigo = main(["--etapas", "integridade"])
+    codigo = main(["--etapas", "divergencia"])
     assert codigo != 0
     erro = capsys.readouterr().err
-    assert "integridade" in erro
+    assert "divergencia" in erro
     assert "implementada" in erro
+
+
+def test_etapa_integridade_sem_banco_falha_de_forma_orientada(tmp_path, capsys):
+    codigo = main(["--etapas", "integridade", "--data-dir", str(tmp_path)])
+    assert codigo != 0
+    erro = capsys.readouterr().err
+    assert "ingest" in erro
+    assert "integridade" in erro
 
 
 def test_etapa_totais_sem_banco_falha_de_forma_orientada(tmp_path, capsys):

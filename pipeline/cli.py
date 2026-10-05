@@ -11,6 +11,8 @@ from pipeline.config import carregar_config
 from pipeline.download import baixar_fontes
 from pipeline.erros import ConfigError, PipelineError
 from pipeline.ingest import ingerir
+from pipeline.integridade import conferir as conferir_integridade
+from pipeline.integridade import relatar as relatar_integridade
 from pipeline.totais import conferir as conferir_totais
 from pipeline.totais import relatar as relatar_totais
 from pipeline.totais import validar as validar_totais
@@ -96,11 +98,23 @@ def _executar_totais(args: argparse.Namespace, config: dict[str, object]) -> Non
     validar_totais(relatorio)
 
 
+def _executar_integridade(args: argparse.Namespace, config: dict[str, object]) -> None:
+    resultado = conferir_integridade(
+        uf=str(args.uf),
+        turno=int(args.turno),
+        ano=int(args.ano),
+        data_dir=Path(args.data_dir),
+        config=config,
+    )
+    relatar_integridade(resultado)
+
+
 def _executar(etapas: list[str], args: argparse.Namespace, config: dict[str, object]) -> None:
     acoes = {
         "download": _executar_download,
         "ingest": _executar_ingest,
         "totais": _executar_totais,
+        "integridade": _executar_integridade,
     }
     for etapa in etapas:
         acao = acoes.get(etapa)

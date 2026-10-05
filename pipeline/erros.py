@@ -19,3 +19,7 @@ class IngestaoError(PipelineError):
 
 class TotaisError(PipelineError):
     """Falha na conferência de totais: divergência entre BU e totalização."""
+
+
+class IntegridadeError(PipelineError):
+    """Falha na etapa de integridade: banco ausente ou ilegível."""
