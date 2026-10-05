@@ -18,8 +18,10 @@ Comportamento:
 from __future__ import annotations
 
 import hashlib
+import http.client
 import json
 import re
+import sys
 import unicodedata
 import urllib.error
 import urllib.parse
@@ -142,12 +144,21 @@ def _sha_de_arquivo(caminho: Path, algoritmo: str) -> str:
 
 
 def carregar_manifesto(caminho: Path) -> dict[str, Any]:
-    """Lê data/raw/manifest.json; manifesto ausente ou corrompido lê como vazio."""
+    """Lê data/raw/manifest.json; manifesto ausente, corrompido ou adulterado lê vazio."""
     try:
         dados = json.loads(caminho.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return {}
-    return dados if isinstance(dados, dict) else {}
+    if not isinstance(dados, dict):
+        return {}
+    if not isinstance(dados.get("arquivos", {}), dict):
+        print(
+            f"[aviso] O manifesto '{caminho}' não tem o formato esperado (a chave "
+            f"'arquivos' deveria ser um objeto) — ele será refeito nesta execução.",
+            file=sys.stderr,
+        )
+        return {}
+    return dados
 
 
 def salvar_manifesto(caminho: Path, manifesto: dict[str, Any]) -> None:
@@ -202,7 +213,7 @@ def _transferir(url: str, destino: Path) -> tuple[int, str, str]:
                 sha512.update(bloco)
         tamanho = parte.stat().st_size
         parte.replace(destino)
-    except (urllib.error.URLError, OSError) as erro:
+    except (urllib.error.URLError, http.client.HTTPException, OSError) as erro:
         parte.unlink(missing_ok=True)
         raise DownloadError(
             f"Falha ao baixar '{_nome_do_arquivo(url)}' do portal do TSE ({url}): {erro}. "
@@ -221,7 +232,8 @@ def _sha512_publicado(recurso: dict[str, Any] | None, bruto: Path) -> str | None
         return None
     caminho_hash = bruto / _nome_do_arquivo(url_hash)
     _transferir(url_hash, caminho_hash)
-    hex_sha512 = caminho_hash.read_text(encoding="latin-1").split()[0].strip().lower()
+    tokens = caminho_hash.read_text(encoding="latin-1").split()
+    hex_sha512 = tokens[0].strip().lower() if tokens else ""
     if not re.fullmatch(r"[0-9a-f]{128}", hex_sha512):
         raise DownloadError(
             f"O arquivo de checksum do portal '{caminho_hash.name}' não contém um SHA-512 "
@@ -243,7 +255,12 @@ def _consultar_conjunto(base_url: str, conjunto_id: str) -> list[dict[str, Any]]
             urllib.request.Request(url, headers={"User-Agent": _USUARIO}), timeout=_TIMEOUT_API
         ) as resposta:
             corpo = json.loads(resposta.read().decode("utf-8"))
-    except (urllib.error.URLError, OSError, json.JSONDecodeError) as erro:
+    except (
+        urllib.error.URLError,
+        http.client.HTTPException,
+        OSError,
+        json.JSONDecodeError,
+    ) as erro:
         raise DownloadError(
             f"Não foi possível consultar o conjunto '{conjunto_id}' na API CKAN do portal "
             f"do TSE ({base_url}): {erro}. Verifique a conexão e rode o pipeline novamente — "

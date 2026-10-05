@@ -1,10 +1,12 @@
 """Testes da seleção de recursos CKAN por metadados e do manifesto em data/raw."""
 
+import http.client
 import json
 from pathlib import Path
 
 import pytest
 
+import pipeline.download as download
 from pipeline.download import (
     carregar_manifesto,
     salvar_manifesto,
@@ -144,3 +146,53 @@ def test_codigo_do_download_nao_presume_url_de_arquivo():
             f"pipeline/download.py contém o padrão fixo '{padrao_proibido}' — as URLs dos "
             "arquivos devem vir dos metadados da API CKAN, nunca do código"
         )
+
+
+class _RespostaTruncada:
+    """Context manager que simula uma resposta HTTP interrompida no meio."""
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return False
+
+    def read(self, quantidade):
+        raise http.client.IncompleteRead(b"pedaco", quantidade)
+
+
+def test_transferencia_interrompida_vira_erro_orientado_sem_part(monkeypatch, tmp_path: Path):
+    """IncompleteRead não é OSError: a transferência truncada vira DownloadError."""
+    monkeypatch.setattr("urllib.request.urlopen", lambda *args, **kwargs: _RespostaTruncada())
+    destino = tmp_path / "bweb_1t_DF_051020221321.zip"
+    with pytest.raises(DownloadError) as excinfo:
+        download._transferir(f"{CDN}/bweb_1t_DF_051020221321.zip", destino)
+    mensagem = str(excinfo.value)
+    assert "bweb_1t_DF_051020221321.zip" in mensagem  # nomeia o recurso
+    assert "pipeline novamente" in mensagem  # orienta o próximo passo
+    assert not list(tmp_path.glob("*.part"))  # nenhum estado parcial permanece
+
+
+def test_sha512_publicado_vazio_vira_erro_orientado(monkeypatch, tmp_path: Path):
+    """Portal publicando .sha512 vazio → DownloadError orientado, não IndexError cru."""
+
+    def transferir_vazio(url: str, destino: Path) -> tuple[int, str, str]:
+        destino.write_text("", encoding="latin-1")
+        return 0, "", ""
+
+    monkeypatch.setattr(download, "_transferir", transferir_vazio)
+    with pytest.raises(DownloadError) as excinfo:
+        download._sha512_publicado({"url": f"{CDN}/bweb_1t_DF.zip.sha512"}, tmp_path)
+    mensagem = str(excinfo.value)
+    assert "bweb_1t_DF.zip.sha512" in mensagem  # nomeia o arquivo do portal
+    assert "SHA-512" in mensagem
+
+
+def test_manifesto_com_arquivos_de_tipo_errado_degrada_para_vazio(tmp_path: Path, capsys):
+    """Manifest adulterado ('arquivos' fora do formato) → aviso e manifesto vazio."""
+    caminho = tmp_path / "manifest.json"
+    caminho.write_text('{"gerado_em": "2026", "arquivos": "adulterado"}', encoding="utf-8")
+    assert carregar_manifesto(caminho) == {}
+    saida = capsys.readouterr()
+    assert "aviso" in (saida.out + saida.err).lower()
+    assert "manifest" in (saida.out + saida.err).lower()
