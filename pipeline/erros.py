@@ -11,3 +11,7 @@ class ConfigError(PipelineError):
 
 class DownloadError(PipelineError):
     """Falha de descoberta ou download das fontes do TSE."""
+
+
+class IngestaoError(PipelineError):
+    """Falha de ingestão: contrato de esquema violado ou fonte ilegível."""

@@ -10,6 +10,7 @@ from pathlib import Path
 from pipeline.config import carregar_config
 from pipeline.download import baixar_fontes
 from pipeline.erros import ConfigError, PipelineError
+from pipeline.ingest import ingerir
 
 ETAPAS = (
     "download",
@@ -80,8 +81,12 @@ def _executar_download(args: argparse.Namespace, config: dict[str, object]) -> N
     )
 
 
+def _executar_ingest(args: argparse.Namespace, config: dict[str, object]) -> None:
+    ingerir(uf=str(args.uf), turno=int(args.turno), data_dir=Path(args.data_dir))
+
+
 def _executar(etapas: list[str], args: argparse.Namespace, config: dict[str, object]) -> None:
-    acoes = {"download": _executar_download}
+    acoes = {"download": _executar_download, "ingest": _executar_ingest}
     for etapa in etapas:
         acao = acoes.get(etapa)
         if acao is None:
