@@ -52,10 +52,10 @@ def test_config_invalido_falha_com_codigo_nao_zero_e_mensagem_clara(tmp_path, ca
 
 
 def test_etapa_nao_implementada_falha_de_forma_orientada(capsys):
-    codigo = main(["--etapas", "download"])
+    codigo = main(["--etapas", "ingest"])
     assert codigo != 0
     erro = capsys.readouterr().err
-    assert "download" in erro
+    assert "ingest" in erro
     assert "implementada" in erro
 
 

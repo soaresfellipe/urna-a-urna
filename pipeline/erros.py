@@ -7,3 +7,7 @@ class PipelineError(Exception):
 
 class ConfigError(PipelineError):
     """Falha de carregamento ou validação do config.yaml."""
+
+
+class DownloadError(PipelineError):
+    """Falha de descoberta ou download das fontes do TSE."""

@@ -5,8 +5,10 @@ from __future__ import annotations
 import argparse
 import sys
 from collections.abc import Sequence
+from pathlib import Path
 
 from pipeline.config import carregar_config
+from pipeline.download import baixar_fontes
 from pipeline.erros import ConfigError, PipelineError
 
 ETAPAS = (
@@ -68,13 +70,27 @@ def _resolver_etapas(parser: argparse.ArgumentParser, texto: str) -> list[str]:
     return [nome for nome in ETAPAS if nome in pedidas]
 
 
+def _executar_download(args: argparse.Namespace, config: dict[str, object]) -> None:
+    baixar_fontes(
+        config,
+        uf=str(args.uf),
+        ano=int(args.ano),
+        turno=int(args.turno),
+        data_dir=Path(args.data_dir),
+    )
+
+
 def _executar(etapas: list[str], args: argparse.Namespace, config: dict[str, object]) -> None:
+    acoes = {"download": _executar_download}
     for etapa in etapas:
-        raise PipelineError(
-            f"Etapa '{etapa}' ainda não implementada neste estágio do projeto — "
-            "as próximas features do pipeline acrescentam download, ingestão, módulos, "
-            "ranking e emissão."
-        )
+        acao = acoes.get(etapa)
+        if acao is None:
+            raise PipelineError(
+                f"Etapa '{etapa}' ainda não implementada neste estágio do projeto — "
+                "as próximas features do pipeline acrescentam ingestão, módulos, "
+                "ranking e emissão."
+            )
+        acao(args, config)
 
 
 def main(argv: Sequence[str] | None = None, caminho_config: str | None = None) -> int:
