@@ -52,11 +52,11 @@ def test_config_invalido_falha_com_codigo_nao_zero_e_mensagem_clara(tmp_path, ca
 
 
 def test_etapa_nao_implementada_falha_de_forma_orientada(capsys):
-    # 'divergencia' já existe; a etapa ainda não implementada é o voto cruzado.
-    codigo = main(["--etapas", "cruzado"])
+    # 'cruzado' já existe; a próxima etapa pendente é o ranking combinado.
+    codigo = main(["--etapas", "ranking"])
     assert codigo != 0
     erro = capsys.readouterr().err
-    assert "cruzado" in erro
+    assert "ranking" in erro
     assert "implementada" in erro
 
 

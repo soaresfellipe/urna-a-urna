@@ -29,5 +29,9 @@ class DivergenciaError(PipelineError):
     """Falha na etapa de divergência: banco ausente ou ilegível."""
 
 
+class CruzadoError(PipelineError):
+    """Falha na etapa de voto cruzado: config sem pares ou banco ausente."""
+
+
 class EmitirError(PipelineError):
     """Falha na etapa de emissão: banco/manifesto ausente ou saída ilegível."""

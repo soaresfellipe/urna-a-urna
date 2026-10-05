@@ -112,6 +112,8 @@ def _contagens_por_modulo(
             rubrica["testes"] = resultado["testes"]
         if "contagens" in resultado:
             rubrica["por_regra"] = resultado["contagens"]
+        if "contagens_por_par" in resultado:
+            rubrica["por_par"] = resultado["contagens_por_par"]
         if "excecoes" in resultado:
             rubrica["excecoes"] = resultado["excecoes"]
         contagens[nome] = rubrica
@@ -466,6 +468,7 @@ def emitir(
     relatorio_totais: dict[str, object],
     resultado_integridade: dict[str, object],
     resultado_divergencia: dict[str, object] | None = None,
+    resultado_cruzado: dict[str, object] | None = None,
 ) -> dict[str, object]:
     """Grava os JSONs em out_dir e devolve o resumo das contagens por módulo.
 
@@ -487,7 +490,9 @@ def emitir(
         con.close()
 
     contagens = _contagens_por_modulo(
-        resultado_integridade, resultado_divergencia=resultado_divergencia
+        resultado_integridade,
+        resultado_divergencia=resultado_divergencia,
+        resultado_cruzado=resultado_cruzado,
     )
     sinalizacoes = _construir_sinalizacoes(
         resultado_integridade,
@@ -562,7 +567,13 @@ def relatar(resumo: dict[str, object]) -> None:
     for nome, contagem in resumo["contagens"].items():  # type: ignore[union-attr]
         por_regra = contagem.get("por_regra", {})  # type: ignore[union-attr]
         regras = ", ".join(f"{regra} {n}" for regra, n in sorted(por_regra.items()))
-        detalhe = f" — {regras}" if regras else ""
+        por_par = contagem.get("por_par", {})  # type: ignore[union-attr]
+        pares = " | ".join(
+            f"{rotulo}: {dados['achados']} achado(s)"  # type: ignore[index]
+            for rotulo, dados in por_par.items()
+        )
+        detalhes = "; ".join(particular for particular in (regras, pares) if particular)
+        detalhe = f" — {detalhes}" if detalhes else ""
         print(
             f"[emissao]   {nome}: {contagem['secoes_sinalizadas']} seções sinalizadas "
             f"({contagem['achados']} achados{detalhe}) em "

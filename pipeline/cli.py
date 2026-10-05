@@ -8,6 +8,8 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from pipeline.config import carregar_config
+from pipeline.cruzado import conferir as conferir_cruzado
+from pipeline.cruzado import relatar as relatar_cruzado
 from pipeline.divergencia import conferir as conferir_divergencia
 from pipeline.divergencia import relatar as relatar_divergencia
 from pipeline.download import baixar_fontes
@@ -137,6 +139,20 @@ def _executar_divergencia(
     estado["resultado_divergencia"] = resultado
 
 
+def _executar_cruzado(
+    args: argparse.Namespace, config: dict[str, object], estado: dict[str, object]
+) -> None:
+    resultado = conferir_cruzado(
+        uf=str(args.uf),
+        turno=int(args.turno),
+        ano=int(args.ano),
+        data_dir=Path(args.data_dir),
+        config=config,
+    )
+    relatar_cruzado(resultado)
+    estado["resultado_cruzado"] = resultado
+
+
 def _executar_emitir(
     args: argparse.Namespace, config: dict[str, object], estado: dict[str, object]
 ) -> None:
@@ -168,6 +184,15 @@ def _executar_emitir(
             data_dir=Path(args.data_dir),
             config=config,
         )
+    resultado_cruzado = estado.get("resultado_cruzado")
+    if resultado_cruzado is None:
+        resultado_cruzado = conferir_cruzado(
+            uf=str(args.uf),
+            turno=int(args.turno),
+            ano=int(args.ano),
+            data_dir=Path(args.data_dir),
+            config=config,
+        )
     resumo = emitir_arquivos(
         uf=str(args.uf),
         ano=int(args.ano),
@@ -178,6 +203,7 @@ def _executar_emitir(
         relatorio_totais=relatorio,
         resultado_integridade=resultado,
         resultado_divergencia=resultado_div,
+        resultado_cruzado=resultado_cruzado,
     )
     relatar_emissao(resumo)
 
@@ -190,6 +216,7 @@ def _executar(etapas: list[str], args: argparse.Namespace, config: dict[str, obj
         "totais": _executar_totais,
         "integridade": _executar_integridade,
         "divergencia": _executar_divergencia,
+        "cruzado": _executar_cruzado,
         "emitir": _executar_emitir,
     }
     for etapa in etapas:
@@ -197,7 +224,7 @@ def _executar(etapas: list[str], args: argparse.Namespace, config: dict[str, obj
         if acao is None:
             raise PipelineError(
                 f"Etapa '{etapa}' ainda não implementada neste estágio do projeto — "
-                "as próximas features do pipeline acrescentam voto cruzado, ranking "
+                "as próximas features do pipeline acrescentam o ranking combinado "
                 "e o fechamento do encadeamento."
             )
         acao(args, config, estado)
