@@ -11,6 +11,9 @@ from pipeline.config import carregar_config
 from pipeline.download import baixar_fontes
 from pipeline.erros import ConfigError, PipelineError
 from pipeline.ingest import ingerir
+from pipeline.totais import conferir as conferir_totais
+from pipeline.totais import relatar as relatar_totais
+from pipeline.totais import validar as validar_totais
 
 ETAPAS = (
     "download",
@@ -85,8 +88,20 @@ def _executar_ingest(args: argparse.Namespace, config: dict[str, object]) -> Non
     ingerir(uf=str(args.uf), turno=int(args.turno), data_dir=Path(args.data_dir))
 
 
+def _executar_totais(args: argparse.Namespace, config: dict[str, object]) -> None:
+    relatorio = conferir_totais(
+        uf=str(args.uf), turno=int(args.turno), data_dir=Path(args.data_dir)
+    )
+    relatar_totais(relatorio)
+    validar_totais(relatorio)
+
+
 def _executar(etapas: list[str], args: argparse.Namespace, config: dict[str, object]) -> None:
-    acoes = {"download": _executar_download, "ingest": _executar_ingest}
+    acoes = {
+        "download": _executar_download,
+        "ingest": _executar_ingest,
+        "totais": _executar_totais,
+    }
     for etapa in etapas:
         acao = acoes.get(etapa)
         if acao is None:

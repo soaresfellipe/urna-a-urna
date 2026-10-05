@@ -84,6 +84,9 @@ OBRIGATORIAS_TOTALIZACAO = (
 # Código fixo do TSE para o cargo de Presidente (CD_CARGO / CD_CARGO_PERGUNTA).
 CARGO_PRESIDENTE = 1
 
+# Código fixo do TSE para o cargo de Governador (CD_CARGO / CD_CARGO_PERGUNTA).
+CARGO_GOVERNADOR = 3
+
 
 # ---------------------------------------------------------------------------
 # Localização e leitura das fontes (via manifesto do download)

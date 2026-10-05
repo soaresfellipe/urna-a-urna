@@ -15,3 +15,7 @@ class DownloadError(PipelineError):
 
 class IngestaoError(PipelineError):
     """Falha de ingestão: contrato de esquema violado ou fonte ilegível."""
+
+
+class TotaisError(PipelineError):
+    """Falha na conferência de totais: divergência entre BU e totalização."""
