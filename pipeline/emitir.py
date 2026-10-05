@@ -83,23 +83,33 @@ def _contagens_por_modulo(
 ) -> dict[str, dict[str, object]]:
     """Contagens por módulo: seções sinalizadas, achados, total e percentual.
 
-    Só o módulo 1 existe neste estágio; os demais entram aqui quando
-    implementados (a emissão aceita os resultados como argumento opcional).
+    Módulos ainda não implementados entram aqui quando existirem (a emissão
+    aceita os resultados como argumentos opcionais).
     """
     contagens: dict[str, dict[str, object]] = {}
 
     def _rubrica(nome: str, resultado: dict[str, object] | None) -> None:
         if resultado is None:
             return
-        total = int(resultado["secoes_analisadas"])  # type: ignore[arg-type]
+        # Módulos que separam "total de seções" de "seções avaliadas" (o
+        # módulo 2 registra não analisadas) usam o total como base do
+        # percentual sinalizado; o módulo 1 segue com as seções analisadas.
+        total = resultado.get("secoes_total")
+        if not isinstance(total, int):
+            total = int(resultado["secoes_analisadas"])  # type: ignore[arg-type]
         sinalizadas = int(resultado["secoes_sinalizadas"])  # type: ignore[arg-type]
         achados = resultado["achados"]  # type: ignore[union-attr]
         rubrica: dict[str, object] = {
             "secoes_sinalizadas": sinalizadas,
             "achados": len(achados),
-            "secoes_analisadas": total,
+            "secoes_analisadas": int(resultado["secoes_analisadas"]),  # type: ignore[arg-type]
+            "secoes_total": total,
             "percentual_sinalizado": round(sinalizadas / total * 100, 2) if total else 0.0,
         }
+        if "secoes_nao_analisadas" in resultado:
+            rubrica["secoes_nao_analisadas"] = resultado["secoes_nao_analisadas"]
+        if "testes" in resultado:
+            rubrica["testes"] = resultado["testes"]
         if "contagens" in resultado:
             rubrica["por_regra"] = resultado["contagens"]
         if "excecoes" in resultado:
@@ -455,6 +465,7 @@ def emitir(
     config: dict[str, object],
     relatorio_totais: dict[str, object],
     resultado_integridade: dict[str, object],
+    resultado_divergencia: dict[str, object] | None = None,
 ) -> dict[str, object]:
     """Grava os JSONs em out_dir e devolve o resumo das contagens por módulo.
 
@@ -475,7 +486,9 @@ def emitir(
     finally:
         con.close()
 
-    contagens = _contagens_por_modulo(resultado_integridade)
+    contagens = _contagens_por_modulo(
+        resultado_integridade, resultado_divergencia=resultado_divergencia
+    )
     sinalizacoes = _construir_sinalizacoes(
         resultado_integridade,
         uf=uf,

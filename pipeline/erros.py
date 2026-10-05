@@ -25,5 +25,9 @@ class IntegridadeError(PipelineError):
     """Falha na etapa de integridade: banco ausente ou ilegível."""
 
 
+class DivergenciaError(PipelineError):
+    """Falha na etapa de divergência: banco ausente ou ilegível."""
+
+
 class EmitirError(PipelineError):
     """Falha na etapa de emissão: banco/manifesto ausente ou saída ilegível."""

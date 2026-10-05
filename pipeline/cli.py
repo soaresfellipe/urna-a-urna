@@ -8,6 +8,8 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from pipeline.config import carregar_config
+from pipeline.divergencia import conferir as conferir_divergencia
+from pipeline.divergencia import relatar as relatar_divergencia
 from pipeline.download import baixar_fontes
 from pipeline.emitir import emitir as emitir_arquivos
 from pipeline.emitir import relatar as relatar_emissao
@@ -121,10 +123,24 @@ def _executar_integridade(
     estado["resultado_integridade"] = resultado
 
 
+def _executar_divergencia(
+    args: argparse.Namespace, config: dict[str, object], estado: dict[str, object]
+) -> None:
+    resultado = conferir_divergencia(
+        uf=str(args.uf),
+        turno=int(args.turno),
+        ano=int(args.ano),
+        data_dir=Path(args.data_dir),
+        config=config,
+    )
+    relatar_divergencia(resultado)
+    estado["resultado_divergencia"] = resultado
+
+
 def _executar_emitir(
     args: argparse.Namespace, config: dict[str, object], estado: dict[str, object]
 ) -> None:
-    # A emissão espelha a conferência de totais e os achados do módulo 1 no
+    # A emissão espelha a conferência de totais e os resultados dos módulos no
     # index.json; quando as etapas rodaram nesta mesma invocação os
     # resultados são reutilizados — os números do terminal e do JSON são
     # exatamente os mesmos.
@@ -143,6 +159,15 @@ def _executar_emitir(
             data_dir=Path(args.data_dir),
             config=config,
         )
+    resultado_div = estado.get("resultado_divergencia")
+    if resultado_div is None:
+        resultado_div = conferir_divergencia(
+            uf=str(args.uf),
+            turno=int(args.turno),
+            ano=int(args.ano),
+            data_dir=Path(args.data_dir),
+            config=config,
+        )
     resumo = emitir_arquivos(
         uf=str(args.uf),
         ano=int(args.ano),
@@ -152,6 +177,7 @@ def _executar_emitir(
         config=config,
         relatorio_totais=relatorio,
         resultado_integridade=resultado,
+        resultado_divergencia=resultado_div,
     )
     relatar_emissao(resumo)
 
@@ -163,6 +189,7 @@ def _executar(etapas: list[str], args: argparse.Namespace, config: dict[str, obj
         "ingest": _executar_ingest,
         "totais": _executar_totais,
         "integridade": _executar_integridade,
+        "divergencia": _executar_divergencia,
         "emitir": _executar_emitir,
     }
     for etapa in etapas:
@@ -170,8 +197,8 @@ def _executar(etapas: list[str], args: argparse.Namespace, config: dict[str, obj
         if acao is None:
             raise PipelineError(
                 f"Etapa '{etapa}' ainda não implementada neste estágio do projeto — "
-                "as próximas features do pipeline acrescentam divergência, voto "
-                "cruzado, ranking e o fechamento do encadeamento."
+                "as próximas features do pipeline acrescentam voto cruzado, ranking "
+                "e o fechamento do encadeamento."
             )
         acao(args, config, estado)
 
