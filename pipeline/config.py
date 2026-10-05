@@ -9,8 +9,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import yaml
+
 from pipeline.erros import ConfigError
-from pipeline.mini_yaml import YamlError, loads
 
 RAIZ = Path(__file__).resolve().parent.parent
 CAMINHO_PADRAO = RAIZ / "config.yaml"
@@ -30,10 +31,24 @@ def carregar_config(caminho: Path | None = None) -> dict[str, object]:
             "Confirme que o config.yaml está na raiz do repositório."
         ) from erro
     try:
-        dados = loads(texto)
-    except YamlError as erro:
+        dados = _normalizar_chaves_de_ano(yaml.safe_load(texto))
+    except yaml.YAMLError as erro:
         raise ConfigError(f"config.yaml: erro de sintaxe ({erro}).") from erro
     return validar_config(dados)
+
+
+def _normalizar_chaves_de_ano(dados: object) -> object:
+    """Converte chaves de ano inteiras em texto, formato esperado pela API de validação."""
+    if isinstance(dados, dict):
+        return {
+            str(chave) if isinstance(chave, int) and not isinstance(chave, bool) else chave: (
+                _normalizar_chaves_de_ano(valor)
+            )
+            for chave, valor in dados.items()
+        }
+    if isinstance(dados, list):
+        return [_normalizar_chaves_de_ano(item) for item in dados]
+    return dados
 
 
 def _mapeamento(dados: object, caminho: str) -> dict[str, object]:

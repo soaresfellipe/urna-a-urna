@@ -12,6 +12,54 @@ from pipeline.config import (
 )
 from pipeline.erros import ConfigError
 
+CONFIG_MINIMA = """\
+pleito:
+  uf: DF
+  ano: 2022
+  turno: 1
+caminhos:
+  data_dir: data
+  out_dir: public/data
+limiares:
+  divergencia:
+    z_robusto_min: 5.0
+    z_tamanho_min: 6.0
+    dif_minima_pp: 8.0
+    fdr_alpha: 0.01
+    min_secoes_local: 6
+    min_secoes_zona: 30
+    min_votos_validos_secao: 30
+  cruzado:
+    z_robusto_min: 5.0
+    z_tamanho_min: 6.0
+    dif_minima_pp: 8.0
+    fdr_alpha: 0.01
+multiplicador_votos_por_eleitor:
+  2022:
+    senador: 1
+voto_cruzado:
+  pares:
+    - rotulo: "Bolsonaro (22) × Ibaneis (15)"
+      presidente:
+        numero: 22
+        nome: "Bolsonaro"
+      governador:
+        numero: 15
+        nome: "Ibaneis Rocha"
+referencia:
+  nivel: municipio
+  fallback: zona
+particao:
+  nivel: zona
+  sinalizacoes: unico
+  tamanho_max_mb: 20
+fontes:
+  ckan_base_url: "https://dadosabertos.tse.jus.br"
+  conjuntos:
+    boletim_de_urna: "resultados-{ano}-boletim-de-urna"
+    totalizacao: "resultados-{ano}"
+"""
+
 
 @pytest.fixture
 def config_valida():
@@ -118,6 +166,22 @@ def test_lista_de_pares_vazia_falha(config_valida):
 def test_arquivo_inexistente_falha_com_mensagem_clara(tmp_path):
     with pytest.raises(ConfigError, match="config"):
         carregar_config(tmp_path / "nao_existe.yaml")
+
+
+def test_yaml_malformado_falha_com_mensagem_clara(tmp_path):
+    caminho = tmp_path / "config.yaml"
+    caminho.write_text("pleito:\n  uf: DF\n ano: 2022\n", encoding="utf-8")
+    with pytest.raises(ConfigError, match="erro de sintaxe"):
+        carregar_config(caminho)
+
+
+def test_carga_do_yaml_trata_ano_como_chave_de_texto(tmp_path):
+    """Ano no YAML vira chave numérica em alguns parsers; a API espera texto (str(ano))."""
+    caminho = tmp_path / "config.yaml"
+    config_texto = CONFIG_MINIMA.replace("2022:\n    senador: 1", "2018:\n    senador: 2")
+    caminho.write_text(config_texto, encoding="utf-8")
+    config = carregar_config(caminho)
+    assert multiplicador_por_eleitor(config, 2018, "senador") == 2
 
 
 def test_raiz_do_projeto_aponta_para_o_config(tmp_path=None):
