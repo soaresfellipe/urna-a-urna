@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Urna a Urna — Detalhe da seção</title>
+  <meta name="description" content="Detalhe de uma seção eleitoral atípica: números da seção ao lado dos valores de referência usados nas comparações (DF, 2022, 1º turno). Ferramenta de apoio à revisão humana; não conclui problema na apuração.">
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+  <header class="topo">
+    <p class="marca">Urna a Urna</p>
+    <h1 class="titulo">Detalhe da seção</h1>
+    <p class="subtitulo">Números da seção ao lado dos valores de referência usados nas comparações.
+      Ferramenta de apoio à revisão humana; a sinalização não conclui problema na apuração.</p>
+    <nav aria-label="Páginas do painel">
+      <a href="index.html">Tabela</a>
+      <a href="metodologia.html">Metodologia e limitações</a>
+    </nav>
+  </header>
+
+  <main id="conteudo" class="conteudo" hidden>
+    <p class="voltar-container">
+      <a id="voltar" class="voltar" href="index.html">← Voltar para a tabela (filtros preservados)</a>
+    </p>
+
+    <section class="cartao" aria-labelledby="titulo-secao">
+      <h2 id="titulo-secao"></h2>
+      <p id="local-secao"></p>
+      <p id="endereco-secao" class="texto-suave"></p>
+    </section>
+
+    <section class="cartao" aria-labelledby="titulo-achados">
+      <h2 id="titulo-achados">Achados da seção</h2>
+      <p class="texto-suave">Cada achado mostra o número da seção ao lado da referência usada na
+        comparação (mediana, MAD, tamanho do grupo), com o z e o q-valor da sinalização.</p>
+      <p id="sem-achados" class="vazio" hidden></p>
+      <div id="lista-achados"></div>
+    </section>
+
+    <section class="cartao" aria-labelledby="titulo-numeros">
+      <h2 id="titulo-numeros">Números da seção por cargo</h2>
+      <p id="excecoes-secao" class="lista-excecoes" hidden></p>
+      <div id="numeros-cargos"></div>
+    </section>
+  </main>
+
+  <p id="carregando" class="carregando" role="status">Carregando dados da seção…</p>
+
+  <section id="erro" class="erro" role="alert" hidden>
+    <h2>Não foi possível carregar os dados</h2>
+    <p>O detalhe da seção depende dos arquivos emitidos em <code>public/data/</code>
+      (sinalizacoes.json e zonas/{zona}.json). Verifique se o servidor está ativo e se o
+      pipeline já foi executado.</p>
+    <a id="voltar-erro" href="index.html">Voltar para a tabela</a>
+  </section>
+
+  <section id="nao-encontrada" class="erro" role="alert" hidden>
+    <h2 id="titulo-nao-encontrada">Seção não encontrada</h2>
+    <p id="texto-nao-encontrada"></p>
+    <a id="voltar-nao-encontrada" href="index.html">Voltar para a tabela</a>
+  </section>
+
+  <footer class="rodape">
+    <p>Dados públicos do TSE (licença CC-BY). Ferramenta de triagem para revisão humana.</p>
+  </footer>
+
+  <script src="js/detalhe.js"></script>
+</body>
+</html>

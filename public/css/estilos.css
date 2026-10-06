@@ -117,7 +117,8 @@ nav a:hover {
 }
 
 .controles,
-section[aria-labelledby="titulo-tabela"] {
+section[aria-labelledby="titulo-tabela"],
+.cartao {
   background: var(--cor-superficie);
   border: 1px solid var(--cor-borda);
   border-radius: 8px;
@@ -126,7 +127,8 @@ section[aria-labelledby="titulo-tabela"] {
 }
 
 .controles h2,
-section[aria-labelledby="titulo-tabela"] h2 {
+section[aria-labelledby="titulo-tabela"] h2,
+.cartao h2 {
   margin: 0 0 0.75rem;
   font-size: 1.1rem;
 }
@@ -293,6 +295,125 @@ td .detalhe {
   display: block;
   margin-bottom: 0.25rem;
   font-size: 1.05rem;
+}
+
+/* ----- Detalhe da seção ----- */
+
+.voltar-container {
+  margin: 0 0 1rem;
+}
+
+.voltar {
+  display: inline-block;
+  padding: 0.5rem 0.75rem;
+  min-height: 44px;
+  color: var(--cor-destaque);
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid var(--cor-borda);
+  border-radius: 6px;
+  background: var(--cor-superficie);
+}
+
+.voltar:hover {
+  background: var(--cor-fundo);
+}
+
+.erro a {
+  display: inline-block;
+  padding: 0.5rem 0.75rem;
+  min-height: 44px;
+  color: var(--cor-destaque);
+  font-weight: 600;
+}
+
+.texto-suave {
+  color: var(--cor-texto-suave);
+  font-size: 0.95rem;
+}
+
+.achado {
+  border: 1px solid var(--cor-borda);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  background: var(--cor-superficie);
+}
+
+.achado:last-child {
+  margin-bottom: 0;
+}
+
+.cabecalho-achado {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+.achado-detalhe {
+  color: var(--cor-texto-suave);
+}
+
+.frase-achado {
+  margin: 0.75rem 0 0;
+  color: var(--cor-texto-suave);
+  font-size: 0.9rem;
+}
+
+.cargo {
+  border-top: 1px solid var(--cor-borda);
+  padding-top: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.cargo:first-child {
+  border-top: none;
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.cargo h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+}
+
+.cargo h4 {
+  margin: 0.75rem 0 0.25rem;
+  font-size: 0.95rem;
+}
+
+.resumo-cargo {
+  margin: 0 0 0.75rem;
+  color: var(--cor-texto-suave);
+  font-size: 0.9rem;
+}
+
+.cargo ul {
+  margin: 0.25rem 0 0;
+  padding-left: 1.25rem;
+}
+
+.lista-excecoes {
+  margin: 0 0 0.75rem;
+  padding: 0.75rem;
+  border: 1px dashed var(--cor-borda);
+  border-radius: 8px;
+  background: var(--cor-zebra);
+  font-size: 0.9rem;
+}
+
+td .link-secao,
+.link-secao {
+  display: inline-block;
+  padding: 0.35rem 0.5rem;
+  min-height: 44px;
+  min-width: 44px;
+  color: var(--cor-destaque);
+  font-weight: 700;
+  text-decoration: underline;
 }
 
 /* ----- Foco visível ----- */

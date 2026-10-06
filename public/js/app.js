@@ -1,7 +1,9 @@
 /* Painel Urna a Urna — tabela ranqueada, filtros combináveis e exportação CSV.
    JS clássico em IIFE, sem dependências e sem build.
    Dados somente via fetch dos JSONs emitidos em public/data/.
-   Estados obrigatórios: carregando (antes do fetch), erro de fetch e vazio. */
+   Estados obrigatórios: carregando (antes do fetch), erro de fetch e vazio.
+   A célula da seção liga ao detalhe (secao.html) levando os filtros ativos no
+   hash, para que o retorno à tabela os preserve. */
 (function () {
   'use strict';
 
@@ -208,6 +210,28 @@
     return td;
   }
 
+  function linkDetalhe(secao) {
+    var partes = [
+      'zona=' + encodeURIComponent(secao.zona),
+      'secao=' + encodeURIComponent(secao.secao)
+    ];
+    if (filtros.municipio) { partes.push('fmunicipio=' + encodeURIComponent(filtros.municipio)); }
+    if (filtros.zona) { partes.push('fzona=' + encodeURIComponent(filtros.zona)); }
+    if (filtros.modulo) { partes.push('fmodulo=' + encodeURIComponent(filtros.modulo)); }
+    return 'secao.html#' + partes.join('&');
+  }
+
+  function criarTdSecao(secao) {
+    var td = criarTd();
+    td.rowSpan = secao.achados.length;
+    var link = document.createElement('a');
+    link.className = 'link-secao';
+    link.href = linkDetalhe(secao);
+    link.textContent = String(secao.secao);
+    td.appendChild(link);
+    return td;
+  }
+
   function criarLinhaAchado(secao, achado, primeira) {
     var linha = document.createElement('tr');
     var quantidade = secao.achados.length;
@@ -215,7 +239,7 @@
     if (primeira) {
       linha.appendChild(criarTdAgrupado(secao.municipio, quantidade));
       linha.appendChild(criarTdAgrupado(String(secao.zona), quantidade));
-      linha.appendChild(criarTdAgrupado(String(secao.secao), quantidade));
+      linha.appendChild(criarTdSecao(secao));
       linha.appendChild(criarTdAgrupado(secao.local, quantidade));
     }
 
