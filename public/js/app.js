@@ -53,20 +53,52 @@
     elementos.conteudo.hidden = true;
     elementos.carregando.hidden = false;
 
-    Promise.all([
-      buscarJson('data/index.json'),
-      buscarJson('data/sinalizacoes.json')
-    ]).then(function (resultados) {
-      dados = { indice: resultados[0], sinalizacoes: resultados[1].sinalizacoes };
-      montarFiltros();
-      lerFiltrosDoHash();
-      elementos.carregando.hidden = true;
-      elementos.conteudo.hidden = false;
-      renderizar();
+    /* A forma do ranking vem do manifesto do index.json: arquivo único
+       (sinalizacoes.json) ou particionado por zona (sinalizacoes/*.json) —
+       as partes são mescladas e reordenadas pela mesma severidade do
+       ranking (q ascendente, z descendente, zona/seção de desempate). */
+    buscarJson('data/index.json').then(function (indice) {
+      var caminhos = (indice.manifesto_arquivos || []).map(function (a) {
+        return a.caminho;
+      });
+      var alvos;
+      if (caminhos.indexOf('sinalizacoes.json') !== -1) {
+        alvos = ['data/sinalizacoes.json'];
+      } else {
+        alvos = caminhos.filter(function (c) {
+          return /^sinalizacoes\/\d+\.json$/.test(c);
+        }).sort().map(function (c) { return 'data/' + c; });
+      }
+      return Promise.all(alvos.map(buscarJson)).then(function (partes) {
+        var secoes = [];
+        partes.forEach(function (parte) {
+          (parte.sinalizacoes || []).forEach(function (item) { secoes.push(item); });
+        });
+        secoes.sort(chaveSeveridade);
+        dados = { indice: indice, sinalizacoes: secoes };
+        montarFiltros();
+        lerFiltrosDoHash();
+        elementos.carregando.hidden = true;
+        elementos.conteudo.hidden = false;
+        renderizar();
+      });
     }).catch(function () {
       elementos.carregando.hidden = true;
       elementos.erro.hidden = false;
     });
+  }
+
+  function chaveSeveridade(a, b) {
+    var qa = Number(a.severidade.q);
+    var qb = Number(b.severidade.q);
+    if (qa !== qb) { return qa - qb; }
+    var za = a.severidade.z === null || a.severidade.z === undefined
+      ? -Infinity : Number(a.severidade.z);
+    var zb = b.severidade.z === null || b.severidade.z === undefined
+      ? -Infinity : Number(b.severidade.z);
+    if (za !== zb) { return zb - za; }
+    if (Number(a.zona) !== Number(b.zona)) { return Number(a.zona) - Number(b.zona); }
+    return Number(a.secao) - Number(b.secao);
   }
 
   /* ---------- Filtros ---------- */

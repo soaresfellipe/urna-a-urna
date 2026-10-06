@@ -39,3 +39,7 @@ class RankingError(PipelineError):
 
 class EmitirError(PipelineError):
     """Falha na etapa de emissão: banco/manifesto ausente ou saída ilegível."""
+
+
+class GuardaError(PipelineError):
+    """Falha de guarda de publicação: limite de tamanho, total ou git violado."""

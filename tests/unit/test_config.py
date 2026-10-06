@@ -53,6 +53,9 @@ particao:
   nivel: zona
   sinalizacoes: unico
   tamanho_max_mb: 20
+publicacao:
+  tamanho_max_mb: 25
+  total_max_arquivos: 20000
 fontes:
   ckan_base_url: "https://dadosabertos.tse.jus.br"
   conjuntos:

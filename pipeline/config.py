@@ -146,6 +146,10 @@ def validar_config(dados: dict[str, object]) -> dict[str, object]:
     _texto(dados, "particao.nivel")
     _numero(dados, "particao.tamanho_max_mb", int, minimo=1)
 
+    # Limites das guardas de publicação (pipeline/guardas.py).
+    _numero(dados, "publicacao.tamanho_max_mb", (int, float), minimo=1)
+    _numero(dados, "publicacao.total_max_arquivos", int, minimo=1)
+
     url = _texto(dados, "fontes.ckan_base_url")
     if not url.startswith("http"):
         raise ConfigError(

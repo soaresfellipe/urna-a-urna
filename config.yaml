@@ -67,6 +67,12 @@ particao:
   sinalizacoes: unico    # 'unico' ou 'por_zona' quando exceder o limite
   tamanho_max_mb: 20     # ao exceder, o emissor quebra o arquivo pelo nível
 
+# Limites de publicação das guardas (VAL-DADOS-005): qualquer violação
+# falha a emissão e derruba a suíte de testes.
+publicacao:
+  tamanho_max_mb: 25         # nenhum arquivo em public/data excede
+  total_max_arquivos: 20000  # total de arquivos emitidos menor que
+
 # Fontes de dados no portal aberto do TSE (CKAN) — descoberta por metadados.
 # '{ano}' é substituído pelo ano do pleito.
 fontes:

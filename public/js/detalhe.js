@@ -102,14 +102,25 @@
     var zona = Number(parametros.zona);
     var secaoProcurada = Number(parametros.secao);
 
-    var promessaSinalizacoes = buscarJson('data/sinalizacoes.json');
-    var promessaZona = buscarJson('data/zonas/' + zona + '.json');
-    // A rejeição da zona é tratada no encadeamento abaixo; este catch marca
-    // a rejeição como tratada no caso de sinalizacoes.json falhar primeiro
-    // (evita rejeição de promessa não tratada no console na falha de fetch).
-    promessaZona.catch(function () {});
+    // A fonte dos achados vem do manifesto do index.json: arquivo único
+    // (sinalizacoes.json) ou particionado por zona (sinalizacoes/*.json).
+    // Zona sem parte própria no particionado não tem achado: não busca.
+    buscarJson('data/index.json').then(function (indice) {
+      var caminhos = (indice.manifesto_arquivos || []).map(function (a) {
+        return a.caminho;
+      });
+      var unico = caminhos.indexOf('sinalizacoes.json') !== -1;
+      var parte = caminhos.indexOf('sinalizacoes/' + zona + '.json') !== -1;
+      var promessaSinalizacoes = unico || parte
+        ? buscarJson(unico ? 'data/sinalizacoes.json' : 'data/sinalizacoes/' + zona + '.json')
+        : Promise.resolve({ sinalizacoes: [] });
+      var promessaZona = buscarJson('data/zonas/' + zona + '.json');
+      // A rejeição da zona é tratada no encadeamento abaixo; este catch marca
+      // a rejeição como tratada no caso de sinalizacoes.json falhar primeiro
+      // (evita rejeição de promessa não tratada no console na falha de fetch).
+      promessaZona.catch(function () {});
 
-    promessaSinalizacoes.then(function (dadosSinalizacoes) {
+      return promessaSinalizacoes.then(function (dadosSinalizacoes) {
       promessaZona.then(function (dadosZona) {
         var entrada = null;
         (dadosSinalizacoes.sinalizacoes || []).forEach(function (item) {
@@ -141,7 +152,11 @@
           'emitidos por esta execução do pipeline (zonas/' + zona + '.json ausente).';
         mostrar(false, false, false, true);
       });
+      }, function () {
+        mostrar(false, false, true, false);
+      });
     }, function () {
+      // Falha ao carregar o index.json (fetch): estado de erro da página.
       mostrar(false, false, true, false);
     });
   }

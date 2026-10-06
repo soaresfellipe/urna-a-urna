@@ -35,7 +35,7 @@ from pathlib import Path
 
 import duckdb
 
-from pipeline import ranking
+from pipeline import guardas, ranking
 from pipeline.erros import EmitirError
 from pipeline.ingest import CARGO_GOVERNADOR, CARGO_PRESIDENTE
 from pipeline.totais import validar as validar_totais
@@ -43,6 +43,7 @@ from pipeline.totais import validar as validar_totais
 CARGOS_ANALISE = (CARGO_PRESIDENTE, CARGO_GOVERNADOR)
 VOTAVEL_BRANCO = 95
 VOTAVEL_NULO = 96
+MIB = 1024 * 1024
 
 # Uma linha por (zona, seção, cargo, votável): números da totalização ao lado
 # dos do BU — a página de detalhe mostra os dois lados da comparação R3. A
@@ -343,9 +344,14 @@ def _sha256_bytes(conteudo: bytes) -> str:
     return hashlib.sha256(conteudo).hexdigest()
 
 
+def _bytes_json(dados: dict[str, object]) -> bytes:
+    """Serialização determinística dos JSONs (a mesma usada ao gravar)."""
+    return json.dumps(dados, indent=2, ensure_ascii=False, sort_keys=False).encode("utf-8")
+
+
 def _gravar_json(caminho: Path, dados: dict[str, object]) -> bytes:
     """Grava JSON determinístico com troca atômica (.part → renomeia)."""
-    conteudo = json.dumps(dados, indent=2, ensure_ascii=False, sort_keys=False).encode("utf-8")
+    conteudo = _bytes_json(dados)
     caminho.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(
         delete=False, dir=caminho.parent, suffix=".part"
@@ -353,6 +359,40 @@ def _gravar_json(caminho: Path, dados: dict[str, object]) -> bytes:
         temporario.write(conteudo)
     os.replace(temporario.name, caminho)
     return conteudo
+
+
+def _limite_particao_bytes(config: dict[str, object]) -> int:
+    """Limite do config (particao.tamanho_max_mb, em MiB) convertido em bytes."""
+    particao = config.get("particao") or {}
+    if not isinstance(particao, dict):
+        particao = {}
+    return int(particao.get("tamanho_max_mb", 20)) * MIB
+
+
+def _particionar_sinalizacoes(
+    sinalizacoes: dict[str, object],
+) -> dict[int, dict[str, object]]:
+    """Quebra a lista ranqueada por zona, preservando a ordem de cada grupo.
+
+    Cada parte carrega os totais globais para contexto do painel; a união
+    das partes, ordenada pela severidade, reproduce o arquivo único.
+    """
+    partes: dict[int, dict[str, object]] = {}
+    for entrada in sinalizacoes["sinalizacoes"]:  # type: ignore[union-attr]
+        zona = int(entrada["zona"])  # type: ignore[arg-type]
+        if zona not in partes:
+            partes[zona] = {
+                "zona": zona,
+                "uf": sinalizacoes["uf"],
+                "ano": sinalizacoes["ano"],
+                "turno": sinalizacoes["turno"],
+                "total_secoes": sinalizacoes["total_secoes"],
+                "total_sinalizadas": sinalizacoes["total_sinalizadas"],
+                "total_achados": sinalizacoes["total_achados"],
+                "sinalizacoes": [],
+            }
+        partes[zona]["sinalizacoes"].append(entrada)  # type: ignore[union-attr]
+    return partes
 
 
 def _manifesto_arquivos(emitidos: dict[str, bytes]) -> list[dict[str, object]]:
@@ -463,13 +503,24 @@ def emitir(
 
     saida = Path(out_dir)
     pasta_zonas = saida / "zonas"
+    pasta_sinalizacoes = saida / "sinalizacoes"
     if pasta_zonas.exists():
         # Zonas de execuções anteriores não podem sobrar de enxurrada (o
         # manifesto registra exatamente o que esta execução emitiu).
         shutil.rmtree(pasta_zonas)
-    emitidos: dict[str, bytes] = {
-        "sinalizacoes.json": _gravar_json(saida / "sinalizacoes.json", sinalizacoes)
-    }
+    if pasta_sinalizacoes.exists():
+        shutil.rmtree(pasta_sinalizacoes)
+    emitidos: dict[str, bytes] = {}
+    if len(_bytes_json(sinalizacoes)) > _limite_particao_bytes(config):
+        # sinalizacoes.json excederia o limite do config: quebra por zona e
+        # o manifesto do index.json lista as partes (architecture.md §4.8).
+        partes = _particionar_sinalizacoes(sinalizacoes)
+        for zona, parte in sorted(partes.items()):
+            emitidos[f"sinalizacoes/{zona}.json"] = _gravar_json(
+                saida / "sinalizacoes" / f"{zona}.json", parte
+            )
+    else:
+        emitidos["sinalizacoes.json"] = _gravar_json(saida / "sinalizacoes.json", sinalizacoes)
     for zona, dados in zonas.items():
         emitidos[f"zonas/{zona}.json"] = _gravar_json(saida / "zonas" / f"{zona}.json", dados)
     manifesto = _manifesto_arquivos(emitidos)
@@ -486,6 +537,10 @@ def emitir(
     )
     _gravar_json(saida / "index.json", indice)
 
+    # Guardas de publicação: tamanho por arquivo e total de arquivos (os
+    # limites vêm do config.yaml); violação levanta GuardaError.
+    resumo_guardas = guardas.executar(saida, config)
+
     arquivos = ["index.json", *sorted(emitidos)]
     return {
         "out_dir": str(saida),
@@ -493,6 +548,7 @@ def emitir(
         "arquivos": arquivos,
         "zonas": len(zonas),
         "contagens": contagens,
+        "guardas": resumo_guardas,
     }
 
 
@@ -509,14 +565,30 @@ def _percentual_texto(valor: float) -> str:
     return f"{valor:.2f}".replace(".", ",") + "%"
 
 
+def _descricao_sinalizacoes(arquivos: list[str]) -> str:
+    """Descrição da forma de emissão do ranking: arquivo único ou por zona."""
+    if any(arquivo == "sinalizacoes.json" for arquivo in arquivos):
+        return "sinalizacoes.json"
+    partes = [arquivo for arquivo in arquivos if arquivo.startswith("sinalizacoes/")]
+    return f"sinalizacoes/ particionado em {len(partes)} arquivo(s) por zona"
+
+
 def relatar(resumo: dict[str, object]) -> None:
-    """Imprime o resumo da emissão: arquivos gravados e contagens por módulo."""
+    """Imprime o resumo da emissão: arquivos gravados, guardas e contagens."""
     zonas = int(resumo["zonas"])  # type: ignore[arg-type]
     arquivos = resumo["arquivos"]  # type: ignore[union-attr]
     print(
-        f"[emissao] JSONs gravados em {resumo['out_dir']}: index.json, sinalizacoes.json "
+        f"[emissao] JSONs gravados em {resumo['out_dir']}: index.json, "
+        f"{_descricao_sinalizacoes(arquivos)} "
         f"e {zonas} arquivo(s) de zona ({len(arquivos)} no total)"
     )
+    limites = resumo.get("guardas", {})  # type: ignore[union-attr]
+    if isinstance(limites, dict) and limites:
+        print(
+            f"[emissao] Guardas de publicação: {limites['arquivos']} arquivo(s) "
+            f"em {limites['pasta']} — limite de {limites['tamanho_max_mb']:g} MiB por "
+            f"arquivo e menos que {limites['total_max_arquivos']:,} arquivos".replace(",", ".")
+        )
     print(
         "[emissao] index.json: limiares do config.yaml, conferência de totais, "
         "contagens por módulo, checksums das fontes e manifesto dos arquivos"
