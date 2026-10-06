@@ -1,0 +1,50 @@
+# CI do Urna a Urna (preparado, VAL-AUTO-001).
+#
+# Propósito: em cada push (branch principal) e cada pull request, instala as
+# dependências com uv, roda a suíte pytest — que inclui as guardas de
+# vocabulário, tamanho de arquivo, total de arquivos e dado bruto no git —
+# e verifica o estilo com ruff (lint e formatação).
+#
+# Válido em checkout limpo: os testes das guardas não dependem de
+# public/data/ preexistente (artefato gerado e gitignore); em checkout sem
+# emissão prévia, os testes usam diretórios temporários e fixtures.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  testes-e-lint:
+    name: Testes e lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configura o uv com cache
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Instala as dependências
+        run: uv sync
+
+      - name: Roda a suíte (inclui as guardas de publicação e vocabulário)
+        run: uv run pytest -q
+
+      - name: Verifica o lint
+        run: uv run ruff check .
+
+      - name: Confere a formatação
+        run: uv run ruff format --check .

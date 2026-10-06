@@ -1,0 +1,77 @@
+# Pipeline + deploy no Cloudflare Pages (preparado, VAL-AUTO-001).
+#
+# Propósito: em push na branch principal e por acionamento manual
+# (workflow_dispatch), executa o pipeline completo — download, ingestão,
+# módulos 1, 2 e 3, ranking e emissão — que gera public/data antes das
+# guardas e da publicação; em seguida roda as guardas de publicação e
+# publica a pasta public/ no Cloudflare Pages com o wrangler.
+#
+# Como o dono habilita (documentado no README):
+#   1. publique o repositório no GitHub;
+#   2. defina os segredos CLOUDFLARE_API_TOKEN e CLOUDFLARE_ACCOUNT_ID
+#      (Settings → Secrets and variables → Actions) — placeholders aqui;
+#   3. crie o projeto no Cloudflare Pages e ajuste o project-name do passo
+#      de deploy, se necessário.
+# Nenhum deploy é executado na missão; sem os segredos, o passo final falha.
+
+name: Pipeline e deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pipeline-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pipeline-deploy:
+    name: Pipeline e deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configura o uv com cache
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Instala as dependências
+        run: uv sync
+
+      - name: Pipeline completo (gera public/data antes das guardas e do deploy)
+        # Em checkout limpo o cache de data/raw/ está vazio: a descoberta
+        # CKAN baixa os três arquivos do pleito configurado (UF/ano/turno
+        # abaixo; fonte de verdade em config.yaml).
+        run: uv run python -m pipeline --uf DF --ano 2022 --turno 1
+
+      - name: Guardas de publicação sobre a pasta emitida
+        # Confirma de novo as guardas — tamanho por arquivo, total de
+        # arquivos e dado bruto no git — sobre public/data antes de
+        # publicar (a etapa de emissão já as roda; esta re-rodada é
+        # redundância deliberada para bloquear a publicação violada).
+        run: |
+          uv run python - <<'PY'
+          from pathlib import Path
+
+          from pipeline import guardas
+          from pipeline.config import carregar_config
+
+          resumo = guardas.executar(Path("public/data"), carregar_config(), raiz=Path("."))
+          print("Guardas de publicação OK:", resumo)
+          PY
+
+      - name: Publica public/ no Cloudflare Pages
+        # Requer os segredos CLOUDFLARE_API_TOKEN e CLOUDFLARE_ACCOUNT_ID
+        # definidos no GitHub (placeholders — nada fixo neste arquivo).
+        # Sem eles, o wrangler não autentica e o passo falha.
+        run: npx -y wrangler@4 pages deploy public --project-name=urna-a-urna
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
