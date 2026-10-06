@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Urna a Urna — Seções sinalizadas para revisão</title>
+  <meta name="description" content="Triagem estatística de seções eleitorais atípicas (DF, 2022, 1º turno). Ferramenta de apoio à revisão humana; não conclui problema na apuração.">
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+  <header class="topo">
+    <p class="marca">Urna a Urna</p>
+    <h1 class="titulo">Seções sinalizadas para revisão</h1>
+    <p class="subtitulo">Triagem estatística de seções atípicas — DF, eleições de 2022, 1º turno.
+      Ferramenta de apoio à revisão humana; a sinalização não conclui problema na apuração.</p>
+    <nav aria-label="Páginas do painel">
+      <a href="index.html" aria-current="page">Tabela</a>
+      <a href="metodologia.html">Metodologia e limitações</a>
+    </nav>
+  </header>
+
+  <main id="conteudo" class="conteudo" hidden>
+    <section class="controles" aria-labelledby="titulo-filtros">
+      <h2 id="titulo-filtros">Filtros</h2>
+      <div class="filtros">
+        <div class="filtro">
+          <label for="filtro-municipio">Município</label>
+          <select id="filtro-municipio"></select>
+        </div>
+        <div class="filtro">
+          <label for="filtro-zona">Zona eleitoral</label>
+          <select id="filtro-zona"></select>
+        </div>
+        <div class="filtro">
+          <label for="filtro-modulo">Módulo</label>
+          <select id="filtro-modulo">
+            <option value="">Todos os módulos</option>
+            <option value="integridade">Integridade</option>
+            <option value="divergencia">Divergência</option>
+            <option value="cruzado">Voto cruzado</option>
+          </select>
+        </div>
+        <button id="botao-limpar" type="button">Limpar filtros</button>
+      </div>
+      <div class="acao">
+        <p id="contador" role="status" aria-live="polite"></p>
+        <div class="exportar">
+          <button id="botao-csv" type="button">Exportar CSV</button>
+          <p id="aviso-csv" class="aviso-csv" hidden></p>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="titulo-tabela">
+      <h2 id="titulo-tabela">Ranking por severidade</h2>
+      <div class="rolagem" role="region" aria-label="Ranking por severidade — área com rolagem horizontal" tabindex="0">
+        <table id="tabela">
+          <caption>Seções sinalizadas em ordem de severidade: q-valor ascendente e, em seguida, z descendente.
+            Seções com mais de um achado aparecem agrupadas em uma única entrada.</caption>
+          <thead>
+            <tr>
+              <th scope="col">Município</th>
+              <th scope="col">Zona</th>
+              <th scope="col">Seção</th>
+              <th scope="col">Local</th>
+              <th scope="col">Módulo</th>
+              <th scope="col">Valor observado</th>
+              <th scope="col">Valor de referência</th>
+              <th scope="col">Frase explicativa</th>
+            </tr>
+          </thead>
+          <tbody id="corpo-tabela"></tbody>
+        </table>
+      </div>
+      <p id="vazio" class="vazio" hidden></p>
+    </section>
+  </main>
+
+  <p id="carregando" class="carregando" role="status">Carregando dados das sinalizações…</p>
+
+  <section id="erro" class="erro" role="alert" hidden>
+    <h2>Não foi possível carregar os dados</h2>
+    <p>A tabela depende dos arquivos emitidos em <code>public/data/</code> (index.json e
+      sinalizacoes.json). Verifique se o servidor está ativo e se o pipeline já foi executado.</p>
+    <button id="botao-tentar" type="button">Tentar novamente</button>
+  </section>
+
+  <footer class="rodape">
+    <p>Dados públicos do TSE (licença CC-BY). Ferramenta de triagem para revisão humana.</p>
+  </footer>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
