@@ -24,7 +24,6 @@
     naoEncontrada: document.getElementById('nao-encontrada'),
     textoNaoEncontrada: document.getElementById('texto-nao-encontrada'),
     tituloNaoEncontrada: document.getElementById('titulo-nao-encontrada'),
-    voltar: document.getElementById('voltar'),
     tituloSecao: document.getElementById('titulo-secao'),
     localSecao: document.getElementById('local-secao'),
     enderecoSecao: document.getElementById('endereco-secao'),
@@ -73,9 +72,17 @@
     if (parametros.fmunicipio) { partes.push('municipio=' + parametros.fmunicipio); }
     if (parametros.fzona) { partes.push('zona=' + parametros.fzona); }
     if (parametros.fmodulo) { partes.push('modulo=' + parametros.fmodulo); }
-    elementos.voltar.href = partes.length
-      ? 'index.html#' + partes.join('&')
-      : 'index.html';
+    var consulta = partes.length ? '#' + partes.join('&') : '';
+    /* Toda ida de volta (tabela) e toda ida adiante (metodologia) carregam os
+       filtros no hash, preservando-os em todo o percurso de navegação. */
+    Array.prototype.forEach.call(
+      document.querySelectorAll('a[href^="index.html"]'),
+      function (link) { link.setAttribute('href', 'index.html' + consulta); }
+    );
+    Array.prototype.forEach.call(
+      document.querySelectorAll('a[href^="metodologia.html"]'),
+      function (link) { link.setAttribute('href', 'metodologia.html' + consulta); }
+    );
   }
 
   function carregar() {
@@ -97,6 +104,10 @@
 
     var promessaSinalizacoes = buscarJson('data/sinalizacoes.json');
     var promessaZona = buscarJson('data/zonas/' + zona + '.json');
+    // A rejeição da zona é tratada no encadeamento abaixo; este catch marca
+    // a rejeição como tratada no caso de sinalizacoes.json falhar primeiro
+    // (evita rejeição de promessa não tratada no console na falha de fetch).
+    promessaZona.catch(function () {});
 
     promessaSinalizacoes.then(function (dadosSinalizacoes) {
       promessaZona.then(function (dadosZona) {

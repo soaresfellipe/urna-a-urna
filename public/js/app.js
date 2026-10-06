@@ -126,13 +126,26 @@
     elementos.filtroModulo.value = filtros.modulo;
   }
 
-  function escreverHash() {
+  function hashFiltros() {
     var partes = [];
     if (filtros.municipio) { partes.push('municipio=' + filtros.municipio); }
     if (filtros.zona) { partes.push('zona=' + filtros.zona); }
     if (filtros.modulo) { partes.push('modulo=' + filtros.modulo); }
-    var alvo = partes.length ? '#' + partes.join('&') : '#';
-    window.history.replaceState(null, '', alvo);
+    return partes.length ? '#' + partes.join('&') : '';
+  }
+
+  function escreverHash() {
+    window.history.replaceState(null, '', hashFiltros() || '#');
+  }
+
+  /* A ida à metodologia leva os filtros no hash; a página de metodologia os
+     devolve ao link "Tabela", preservando-os em todo o percurso. */
+  function atualizarLinksMetodologia() {
+    var consulta = hashFiltros();
+    Array.prototype.forEach.call(
+      document.querySelectorAll('a[href^="metodologia.html"]'),
+      function (link) { link.setAttribute('href', 'metodologia.html' + consulta); }
+    );
   }
 
   /* ---------- Formatação ---------- */
@@ -301,6 +314,7 @@
 
     atualizarExportacao(filtradas, quantidadeAchados);
     escreverHash();
+    atualizarLinksMetodologia();
   }
 
   /* ---------- Exportação CSV ---------- */

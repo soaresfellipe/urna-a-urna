@@ -134,7 +134,29 @@
       + 'data/index.json, não são fixados na página.';
   }
 
+  /* A tabela e o detalhe chegam aqui levando os filtros ativos no hash
+     (municipio, zona, modulo); o link "Tabela" desta página devolve os
+     mesmos filtros para que o percurso completo os preserve. */
+  function preservarFiltrosNoHash() {
+    var hash = window.location.hash;
+    if (!hash || hash === '#') {
+      return;
+    }
+    var temFiltro = hash.replace(/^#/, '').split('&').some(function (par) {
+      var chave = par.split('=')[0];
+      return chave === 'municipio' || chave === 'zona' || chave === 'modulo';
+    });
+    if (!temFiltro) {
+      return;
+    }
+    Array.prototype.forEach.call(
+      document.querySelectorAll('a[href^="index.html"]'),
+      function (link) { link.setAttribute('href', 'index.html' + hash); }
+    );
+  }
+
   function carregar() {
+    preservarFiltrosNoHash();
     elementos.erro.hidden = true;
     elementos.conteudo.hidden = true;
     elementos.carregando.hidden = false;
