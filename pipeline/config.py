@@ -142,8 +142,6 @@ def validar_config(dados: dict[str, object]) -> dict[str, object]:
     _texto(dados, "referencia.nivel", _NIVEIS_REFERENCIA)
     _texto(dados, "referencia.fallback", _FALLBACKS_REFERENCIA)
 
-    _texto(dados, "particao.sinalizacoes", ("unico", "por_zona"))
-    _texto(dados, "particao.nivel")
     _numero(dados, "particao.tamanho_max_mb", int, minimo=1)
 
     # Limites das guardas de publicação (pipeline/guardas.py).

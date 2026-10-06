@@ -38,7 +38,7 @@ Opções úteis: `--data-dir` (default `data`), `--out-dir` (default `public/dat
 
 ## Configuração
 
-`config.yaml` é a única fonte de verdade: pleito padrão do CLI, limiares dos três módulos, pares do voto cruzado, multiplicadores, níveis de referência, particionamento e limites de publicação. Alterar um limiar muda a triagem sem tocar em código e o novo valor aparece espelhado no `public/data/index.json`.
+`config.yaml` é a única fonte de verdade: pleito padrão do CLI, limiares dos três módulos, pares do voto cruzado, multiplicadores, níveis de referência, particionamento e limites de publicação. Alterar um limiar muda a triagem sem tocar em código e o novo valor aparece espelhado no `public/data/index.json`. A política de emissão é fixa: `sinalizacoes.json` único enquanto couber em `particao.tamanho_max_mb` (20 MiB por padrão) e, acima do limiar, particionamento sempre por zona — não há opções configuráveis de modo ou nível; ao reemitir no mesmo diretório, o emissor remove apenas os arquivos obsoletos do regime anterior (e o manifesto do `index.json` lista exatamente os arquivos presentes).
 
 ## Testes
 

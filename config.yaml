@@ -62,10 +62,10 @@ referencia:
   fallback: zona    # quando a dimensão é degenerada ou insuficiente
 
 # Particionamento da emissão em public/data (guardas de tamanho na emissão).
+# Política fixa: sinalizacoes.json único enquanto couber no limite; acima
+# dele, o emissor quebra sempre por zona — sem opções de modo ou nível.
 particao:
-  nivel: zona            # base do particionamento dos arquivos de detalhe
-  sinalizacoes: unico    # 'unico' ou 'por_zona' quando exceder o limite
-  tamanho_max_mb: 20     # ao exceder, o emissor quebra o arquivo pelo nível
+  tamanho_max_mb: 20     # ao exceder, o emissor quebra o ranking por zona
 
 # Limites de publicação das guardas (VAL-DADOS-005): qualquer violação
 # falha a emissão e derruba a suíte de testes.

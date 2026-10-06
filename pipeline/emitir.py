@@ -514,6 +514,11 @@ def emitir(
     if len(_bytes_json(sinalizacoes)) > _limite_particao_bytes(config):
         # sinalizacoes.json excederia o limite do config: quebra por zona e
         # o manifesto do index.json lista as partes (architecture.md §4.8).
+        # Um sinalizacoes.json único de execução anterior no mesmo diretório
+        # é obsoleto neste regime — remove somente esse arquivo.
+        obsoleto = saida / "sinalizacoes.json"
+        if obsoleto.exists():
+            obsoleto.unlink()
         partes = _particionar_sinalizacoes(sinalizacoes)
         for zona, parte in sorted(partes.items()):
             emitidos[f"sinalizacoes/{zona}.json"] = _gravar_json(

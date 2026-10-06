@@ -711,8 +711,13 @@ def escrever_totalizacao(
 
 def _zipar(caminho_zip: Path, nome_membro: str, conteudo: bytes) -> None:
     caminho_zip.parent.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(caminho_zip, "w", zipfile.ZIP_DEFLATED) as arquivo:
-        arquivo.writestr(nome_membro, conteudo)
+    # Timestamp fixo: sem ZipInfo, writestr carimba a hora corrente e bytes do
+    # zip mudam a cada empacotamento — sha256 (manifesto e index.json) deixa
+    # de ser reproduzível e a reemissão flaca na conferência de idempotência.
+    info = zipfile.ZipInfo(nome_membro, date_time=(2022, 10, 5, 0, 0, 0))
+    info.compress_type = zipfile.ZIP_DEFLATED
+    with zipfile.ZipFile(caminho_zip, "w") as arquivo:
+        arquivo.writestr(info, conteudo)
 
 
 def empacotar(data_dir: Path, pleito: PleitoSintetico) -> dict[str, Path]:

@@ -27,7 +27,6 @@ def _config_particionado() -> dict:
     """
     config = copy.deepcopy(carregar_config())
     config["particao"]["tamanho_max_mb"] = 0
-    config["particao"]["sinalizacoes"] = "por_zona"
     return config
 
 
@@ -115,3 +114,49 @@ def test_emissao_particionada_passa_nas_guardas(tmp_path):
             }
         },
     )
+
+
+def _arquivos_presentes(saida):
+    return {p.relative_to(saida).as_posix() for p in saida.rglob("*") if p.is_file()}
+
+
+def _manifesto(indice):
+    return {a["caminho"] for a in indice["manifesto_arquivos"]}
+
+
+def test_transicao_do_unico_para_o_particionado_remove_so_o_obsoleto(tmp_path):
+    """Cenário (c) de VAL-RANK-003: arquivo único seguido de re-execução
+    particionada no MESMO diretório — o sinalizacoes.json antigo não sobra,
+    e nenhum outro arquivo é tocado; o manifesto lista exatamente o presente."""
+    _emitir_na_fixture(tmp_path, _pleito_com_achados())
+    saida = tmp_path / "public" / "data"
+    assert (saida / "sinalizacoes.json").is_file()
+    alheio = saida / "nota.txt"
+    alheio.write_text("arquivo alheio de execução anterior", encoding="utf-8")
+
+    _emitir_na_fixture(tmp_path, _pleito_com_achados(), config=_config_particionado())
+
+    assert not (saida / "sinalizacoes.json").exists()
+    assert alheio.is_file()  # só o obsoleto é removido
+    particionados = sorted(p.name for p in (saida / "sinalizacoes").glob("*.json"))
+    assert particionados == ["1.json", "2.json"]
+    indice = _ler_json(saida / "index.json")
+    # O manifesto cobre exatamente os arquivos desta emissão; nota.txt é
+    # conteúdo alheio que a emissão não limpa nem lista (política da feature).
+    assert _manifesto(indice) == _arquivos_presentes(saida) - {"nota.txt"}
+    assert "sinalizacoes.json" not in _manifesto(indice)
+
+
+def test_transicao_do_particionado_para_o_unico_limpa_as_partes(tmp_path):
+    """Regime inverso no mesmo diretório: as partes por zona da execução
+    anterior não sobrevivem; o manifesto lista exatamente o presente."""
+    _emitir_na_fixture(tmp_path, _pleito_com_achados(), config=_config_particionado())
+    saida = tmp_path / "public" / "data"
+    assert (saida / "sinalizacoes").is_dir()
+
+    _emitir_na_fixture(tmp_path, _pleito_com_achados())
+
+    assert not (saida / "sinalizacoes").exists()
+    assert (saida / "sinalizacoes.json").is_file()
+    indice = _ler_json(saida / "index.json")
+    assert _manifesto(indice) == _arquivos_presentes(saida)

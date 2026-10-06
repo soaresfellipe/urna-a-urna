@@ -50,8 +50,6 @@ referencia:
   nivel: municipio
   fallback: zona
 particao:
-  nivel: zona
-  sinalizacoes: unico
   tamanho_max_mb: 20
 publicacao:
   tamanho_max_mb: 25
@@ -109,6 +107,23 @@ def test_pares_aprovados_do_voto_cruzado(config_valida):
 def test_nivel_de_referencia_municipio_com_fallback_zona(config_valida):
     assert config_valida["referencia"]["nivel"] == "municipio"
     assert config_valida["referencia"]["fallback"] == "zona"
+
+
+def test_particao_expoe_apenas_o_limiar_de_tamanho(config_valida):
+    """A política é fixa: único até o limiar, depois sempre por zona —
+    sem opções configuráveis de modo ou nível (VAL-RANK-003)."""
+    particao = config_valida["particao"]
+    assert particao["tamanho_max_mb"] == 20
+    assert "sinalizacoes" not in particao
+    assert "nivel" not in particao
+
+
+def test_config_sem_particao_de_modo_ou_nivel_valida(tmp_path):
+    """Config que usa apenas o schema atual valida sem os campos removidos."""
+    caminho = tmp_path / "config.yaml"
+    caminho.write_text(CONFIG_MINIMA, encoding="utf-8")
+    config = carregar_config(caminho)
+    assert config["particao"]["tamanho_max_mb"] == 20
 
 
 def test_fontes_ckan_presentes(config_valida):
