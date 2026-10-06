@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Urna a Urna — Metodologia e limitações</title>
+  <meta name="description" content="Metodologia da triagem estatística de seções eleitorais atípicas: testes de integridade, divergência e voto cruzado, limiares usados, limitações e atribuição dos dados do TSE (DF, 2022, 1º turno).">
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+  <header class="topo">
+    <p class="marca">Urna a Urna</p>
+    <h1 class="titulo">Metodologia e limitações</h1>
+    <p class="subtitulo">Como cada sinalização é calculada, quais limiares foram usados nesta emissão e
+      por que uma seção atípica é ponto de partida para revisão humana — não um veredito sobre a apuração.</p>
+    <nav aria-label="Páginas do painel">
+      <a href="index.html">Tabela</a>
+      <a href="metodologia.html" aria-current="page">Metodologia e limitações</a>
+    </nav>
+  </header>
+
+  <main id="conteudo" class="conteudo" hidden>
+    <p id="selo-emissao" class="texto-suave"></p>
+
+    <section class="cartao" id="visao-geral" aria-labelledby="titulo-visao">
+      <h2 id="titulo-visao">O que é a triagem</h2>
+      <p>A ferramenta analisa, seção por seção, os Boletins de Urna (BU) públicos do TSE e os dados de
+        totalização por seção, comparando cada seção com o seu entorno (demais seções do mesmo local de
+        votação, ou da mesma zona, quando o local é pequeno). Ela produz uma <strong>lista ranqueada de
+        seções atípicas para revisão humana</strong>.</p>
+      <p>A triagem usa apenas vocabulário de <strong>atípico</strong> e <strong>divergente</strong>. Ela não
+        mede e não afirma a existência de problema na apuração: uma seção sinalizada é um convite a olhar,
+        um sinal para conferir — jamais uma conclusão (veja <a href="#limitacoes">Limitações</a>).</p>
+      <p>Três módulos compõem a análise:</p>
+      <ul>
+        <li><strong>Integridade</strong> — regras determinísticas de coerência dos números da própria seção;</li>
+        <li><strong>Divergência</strong> — comparação do percentual de cada candidato com as demais seções do
+          mesmo grupo local;</li>
+        <li><strong>Voto cruzado</strong> — comparação da diferença entre pares (Presidente × Governador)
+          com o entorno.</li>
+      </ul>
+      <p>Os achados dos três módulos passam por um ranqueamento combinado, ordenado por q-valor (menor é
+        mais atípico) e depois por z (maior é mais atípico). Cada achado recebe uma frase explicativa com os
+        números observados e da referência.</p>
+    </section>
+
+    <section class="cartao" id="integridade" aria-labelledby="titulo-integridade">
+      <h2 id="titulo-integridade">Módulo 1 — Integridade</h2>
+      <p>Regras determinísticas, aplicadas sempre por <strong>(seção, cargo)</strong>, com as quantidades do
+        pleito do próprio cargo (aptos e comparecimento podem variar entre cargos, por isso a apuração nunca
+        é deduplicada por seção):</p>
+      <dl>
+        <dt>R1 — a soma dos votos fecha com o comparecimento</dt>
+        <dd>A soma dos votos (nominais + votos de legenda, nos proporcionais + brancos + nulos) deve
+          corresponder ao comparecimento da seção naquele cargo.</dd>
+        <dt>R2 — comparecimento não excede aptos</dt>
+        <dd>O comparecimento da seção×cargo não pode superar a quantidade de aptos registrada para o mesmo
+          cargo.</dd>
+        <dt>R3 — BU corresponde à totalização</dt>
+        <dd>Para cada candidato, brancos e nulos, os votos do Boletim de Urna e os da totalização oficial
+          correspondem, seção a seção (Presidente: BU do DF comparado ao arquivo nacional, filtrado pelo
+          turno).</dd>
+      </dl>
+      <h3>Exceções legítimas</h3>
+      <p>Algumas situações são esperadas e não devem ser sinalizadas. As exceções são aplicadas <strong>por
+        regra, não por suposição</strong>, e <strong>toda exceção usada é registrada no resultado</strong>
+        (nunca silenciosa) — no detalhe da seção e no painel.</p>
+      <div class="rolagem">
+        <table>
+          <caption>Exceções legítimas e como cada regra as trata.</caption>
+          <thead>
+            <tr>
+              <th scope="col">Exceção</th>
+              <th scope="col">Tratamento</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Senador com múltiplas vagas</td>
+              <td>O eleitor vota em vários senadores; R1 compara contra o comparecimento multiplicado pelo
+                multiplicador de votos por eleitor do ano/cargo, definido em <code>config.yaml</code>.
+                Nesta emissão: <span id="multiplicadores"></span>.</td>
+            </tr>
+            <tr>
+              <td>Voto em trânsito (<code>SG_UF='VT'</code>)</td>
+              <td>Excluída da verificação R3 (a seção se apura em outra UF); na ocorrência, é registrada no
+                resultado.</td>
+            </tr>
+            <tr>
+              <td>Exterior (<code>ZZ</code>)</td>
+              <td>Excluída da verificação R3 (seção no exterior); na ocorrência, é registrada no resultado.</td>
+            </tr>
+            <tr>
+              <td>Seção agregada (<code>DS_AGREGADAS</code>)</td>
+              <td>A urna agregada é comparada como unidade única contra a totalização da seção agregada, em
+                vez de desmembrada seção a seção; o tratamento é registrado no resultado.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="cartao" id="divergencia" aria-labelledby="titulo-divergencia">
+      <h2 id="titulo-divergencia">Módulo 2 — Divergência em relação às vizinhas</h2>
+      <p>Para cada candidato de Presidente e Governador, cada seção é comparada com o seu
+        <strong>entorno local</strong> — e nunca com um valor fixo:</p>
+      <ul>
+        <li><strong>Percentual da seção.</strong> <code>p = votos válidos do candidato ÷ votos válidos da
+          seção</code>, naquele cargo.</li>
+        <li><strong>Grupo de referência (leave-one-out).</strong> As demais seções do <strong>mesmo local de
+          votação</strong> (a própria seção fica de fora da comparação). A referência é a
+          <strong>mediana</strong> <code>m</code> do grupo e o <strong>MAD</strong> (desvio absoluto da
+          mediana) do grupo, que mede o espalhamento típico do entorno.</li>
+        <li><strong>Fallback por tamanho do grupo.</strong> Local com menos de
+          <span class="limiar" data-limiar="divergencia:min_secoes_local"></span> seções usa a <strong>zona</strong>
+          como referência; zona com menos de
+          <span class="limiar" data-limiar="divergencia:min_secoes_zona"></span> seções deixa a seção fora da
+          análise no módulo. O achado registra sempre qual referência foi usada
+          (<code>tipo_referencia</code>) e o tamanho do grupo.</li>
+        <li><strong>Tamanho da seção.</strong> O desvio é medido em relação ao erro binomial esperado de uma
+          amostra do tamanho da seção: <code>se = √(m(1−m)/n)</code>, com <code>n</code> = votos válidos da
+          seção. Seções com menos de
+          <span class="limiar" data-limiar="divergencia:min_votos_validos_secao"></span> votos válidos não
+          são analisadas no módulo — comparações em amostras minúsculas oscilam demais por acaso.</li>
+      </ul>
+      <p>A seção é sinalizada apenas quando <strong>todos</strong> os critérios abaixo passam, de uma vez,
+        pelos testes do módulo (seções × candidatos × cargos):</p>
+      <div class="rolagem">
+        <table id="tabela-limiares-divergencia">
+          <caption>Limiares do módulo de divergência nesta emissão (valores lidos dos dados gerados, no
+            <code>index.json</code> — não são fixados na página).</caption>
+          <thead>
+            <tr>
+              <th scope="col">Critério</th>
+              <th scope="col">Limiar nesta emissão</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>z robusto <code>|p − m| ÷ (1,4826 · MAD)</code></td>
+              <td>≥ <span class="limiar" data-limiar="divergencia:z_robusto_min"></span></td>
+            </tr>
+            <tr>
+              <td>z de tamanho <code>|p − m| ÷ se</code></td>
+              <td>≥ <span class="limiar" data-limiar="divergencia:z_tamanho_min"></span></td>
+            </tr>
+            <tr>
+              <td>diferença mínima <code>|p − m|</code></td>
+              <td>≥ <span class="limiar" data-limiar="divergencia:dif_minima_pp"></span> pp</td>
+            </tr>
+            <tr>
+              <td>q-valor FDR (Benjamini–Hochberg), α</td>
+              <td>≤ <span class="limiar" data-limiar="divergencia:fdr_alpha"></span></td>
+            </tr>
+            <tr>
+              <td>seções mínimas no local (antes de usar a zona)</td>
+              <td><span class="limiar" data-limiar="divergencia:min_secoes_local"></span></td>
+            </tr>
+            <tr>
+              <td>seções mínimas na zona (antes de deixar de analisar)</td>
+              <td><span class="limiar" data-limiar="divergencia:min_secoes_zona"></span></td>
+            </tr>
+            <tr>
+              <td>votos válidos mínimos na seção</td>
+              <td><span class="limiar" data-limiar="divergencia:min_votos_validos_secao"></span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p><strong>FDR (Benjamini–Hochberg)</strong>: entre muitos testes simultâneos (milhares de seções ×
+        candidatos), é normal que alguns pareçam extremos por puro acaso. O procedimento de
+        Benjamini–Hochberg controla a taxa de falsos descobrimentos (FDR): o q-valor de um achado é a
+        proporção esperada de sinalizações falsas se tudo com q até aquele valor for aceito. Exigir
+        q-valor ≤ <span class="limiar" data-limiar="divergencia:fdr_alpha"></span> limita essa proporção a
+        cerca de <span class="limiar" data-limiar="divergencia:fdr_alpha"></span> dos achados.</p>
+    </section>
+
+    <section class="cartao" id="voto-cruzado" aria-labelledby="titulo-cruzado">
+      <h2 id="titulo-cruzado">Módulo 3 — Voto cruzado relativo</h2>
+      <p>O voto cruzado pergunta: dentro desta seção, o <strong>termômetro da eleição</strong>
+        (diferença entre percentuais de dois candidatos, um de Presidente e outro de Governador) desviou dos
+        demais lugares do entorno? Intuitivamente, uma seção onde um candidato de Presidente tem muito mais
+        votos do que o candidato-aliado de Governador ordinariamente receberia é uma combinação atípica.</p>
+      <p><strong>Pares analisados nesta emissão</strong> (aprovados no <code>config.yaml</code>; o módulo
+        roda por par e cada sinalização identifica o par):</p>
+      <ul id="lista-pares"></ul>
+      <ul>
+        <li><strong>Diferença da seção.</strong> <code>d = p_presidente(A) − p_governador(B)</code> na
+          seção (percentuais de válidos).</li>
+        <li><strong>Referência local.</strong> A distribuição de <code>d</code> <strong>no município</strong>;
+          quando essa dimensão é degenerada ou insuficiente (no DF há um único município, então a referência
+          adotada é <span id="referencia-cruzado"></span>), usa-se a <strong>zona</strong>. Leave-one-out:
+          mediana e MAD das demais seções (a analisada fica de fora). O nível efetivamente usado é
+          registrado (<code>nivel_referencia</code>).</li>
+        <li><strong>Tamanho da seção.</strong> Erro combinado
+          <code>√(p₁(1−p₁)/n₁ + p₂(1−p₂)/n₂)</code>, somando a incerteza dos dois percentuais.</li>
+      </ul>
+      <div class="rolagem">
+        <table id="tabela-limiares-cruzado">
+          <caption>Limiares do módulo de voto cruzado nesta emissão (valores lidos dos dados gerados, no
+            <code>index.json</code>).</caption>
+          <thead>
+            <tr>
+              <th scope="col">Critério</th>
+              <th scope="col">Limiar nesta emissão</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>z robusto <code>|d − m| ÷ (1,4826 · MAD)</code></td>
+              <td>≥ <span class="limiar" data-limiar="cruzado:z_robusto_min"></span></td>
+            </tr>
+            <tr>
+              <td>z de tamanho (erro combinado)</td>
+              <td>≥ <span class="limiar" data-limiar="cruzado:z_tamanho_min"></span></td>
+            </tr>
+            <tr>
+              <td>diferença mínima <code>|d − m|</code></td>
+              <td>≥ <span class="limiar" data-limiar="cruzado:dif_minima_pp"></span> pp</td>
+            </tr>
+            <tr>
+              <td>q-valor FDR (Benjamini–Hochberg), α</td>
+              <td>≤ <span class="limiar" data-limiar="cruzado:fdr_alpha"></span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="cartao" id="limitacoes" aria-labelledby="titulo-limitacoes">
+      <h2 id="titulo-limitacoes">Limitações — por que seção atípica não é evidência de problema na apuração</h2>
+      <p>Uma seção sinalizada é <strong>um ponto de partida para revisão humana, não uma prova de problema
+        na apuração</strong>. Um desvio estatístico é um fato a olhar; a apuração em si tem controles
+        próprios (boletins de urna assinados, totalização separada, auditorias públicas) que a triagem não
+        substitui e não interpela. As seções do DF são analisadas com dados públicos apenas; razões
+        exclusivamente estatísticas explicam a maioria dos desvios:</p>
+      <ul>
+        <li><strong>Padrões sociais e demográficos locais.</strong> O entorno do qual a seção é comparada
+          pode realmente ser diferente dela: bairros com perfis muito ímpares (classes, idade, migração,
+          religiosidade, política local) têm percentuais que divergem do "padrão" vizinho de forma
+          legítima. A comparação estatística não sabe de que partiu essa divergência.</li>
+        <li><strong>Tamanho pequeno já mitigado, mas não eliminado.</strong> O critério de tamanho (seções
+          com poucos votos não entram; erro binomial nos z) reduz o efeito dos sorteios probabilísticos em
+          amostras pequenas — com poucas dezenas de votos, oscilações gigantes acontecem por acaso. O filtro
+          de votos válidos (<span class="limiar" data-limiar="divergencia:min_votos_validos_secao"></span> votos
+          mínimos) mitiga isso, mas não elimina: até seções que passam o filtro podem se afastar da mediana
+          por sorteio.</li>
+        <li><strong>Referência local imperfeita.</strong> Mediana e MAD do entorno capturam o "típico"
+          do grupo, mas um grupo pode ser composto, em sua maioria, por seções já atípicas no mesmo
+          sentido — nesse caso a "referência típica" não é uma verdade sobre o eleitorado. Da mesma
+          forma, um grupo pequeno (zona usada como fallback) é mais frágil como referência.</li>        <li><strong>Efeito de volume de testes.</strong> Milhares de comparações são feitas de uma vez.
+          O FDR controla a taxa de falsos descobrimentos, mas não garante que toda sinalização seja real —
+          cerca de α dos achados podem ser falsos por construção do método.</li>
+        <li><strong>Exceções legítimas.</strong> Situações como senador com múltiplos votos, voto em
+          trânsito, exterior e seções agregadas são casos esperados e, quando aplicadas, ficam registradas
+          — não são problema, apenas particularidades da regra eleitoral.</li>
+      </ul>
+      <p><strong>Em resumo</strong>: a ferramenta encurta o caminho do humano (de
+        <span id="total-secoes-limitacoes"></span> seções para algumas dezenas priorizadas); a revisão
+        humana — com documentos, contexto local e controles oficiais — é quem decide se há algo a
+        verificar.</p>
+    </section>
+
+    <section class="cartao" id="dados-e-fonte" aria-labelledby="titulo-dados">
+      <h2 id="titulo-dados">Dados e fonte</h2>
+      <p>Os dados empregados nesta emissão vêm exclusivamente do portal de dados abertos do TSE, baixados
+        por metadados da API CKAN, com checksums registrados no manifesto:</p>
+      <ul>
+        <li><strong>Boletim de Urna</strong> (BU) do DF, 1º turno;</li>
+        <li><strong>Votação por seção</strong> do DF;</li>
+        <li><strong>Votação por seção do Brasil</strong> (usada porque Presidente por seção só existe no
+          arquivo nacional).</li>
+      </ul>
+      <p><strong>Atribuição:</strong> os dados e os dicionários de campos são disponibilizados pelo
+        <a href="https://dadosabertos.tse.jus.br" rel="noopener noreferrer">portal de dados abertos do
+        Tribunal Superior Eleitoral (TSE)</a>, sob licença
+        <strong>CC-BY (Creative Commons Attribution)</strong>. Esta página e o painel são
+        <strong>não oficiais</strong> e independentes do TSE: apenas reutilizam os dados públicos no
+        formato exigido pela licença, agregando-os para a triagem estatística descrita acima. Os números
+        originais permanecem públicos e auditáveis na fonte.</p>
+      <p>A <a href="index.html">Tabela</a> lista as seções sinalizadas; o detalhe de cada seção
+        (<code>secao.html</code>, a partir das linhas da tabela) mostra os números da seção ao lado dos
+        valores de referência usados nas comparações. Todo o painel funciona sem backend, lendo os JSONs
+        emitidos pela própria execução do pipeline.</p>
+    </section>
+  </main>
+
+  <p id="carregando" class="carregando" role="status">Carregando os limiares da emissão…</p>
+
+  <section id="erro" class="erro" role="alert" hidden>
+    <h2>Não foi possível carregar os dados</h2>
+    <p>A página de metodologia lê os limiares reais da emissão em <code>public/data/index.json</code>.
+      Verifique se o servidor está ativo e se o pipeline já foi executado.</p>
+    <button id="botao-tentar" type="button">Tentar novamente</button>
+  </section>
+
+  <footer class="rodape">
+    <p>Dados públicos do TSE (licença CC-BY). Ferramenta de triagem para revisão humana.</p>
+  </footer>
+
+  <script src="js/metodologia.js"></script>
+</body>
+</html>
