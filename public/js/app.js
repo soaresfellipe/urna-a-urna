@@ -88,15 +88,21 @@
     });
   }
 
+  /* Mesma chave do emissor (pipeline/ranking.py `_chave_entrada`): q
+     ascendente, depois -z ascendente (z nulo vira -infinito e, portanto, vem
+     antes de qualquer z numérico), zona e seção como desempate final — que
+     reproduz exatamente a ordem do JSON emitido. */
+  function chaveZSeveridade(z) {
+    return z === null || z === undefined ? -Infinity : -Number(z);
+  }
+
   function chaveSeveridade(a, b) {
     var qa = Number(a.severidade.q);
     var qb = Number(b.severidade.q);
     if (qa !== qb) { return qa - qb; }
-    var za = a.severidade.z === null || a.severidade.z === undefined
-      ? -Infinity : Number(a.severidade.z);
-    var zb = b.severidade.z === null || b.severidade.z === undefined
-      ? -Infinity : Number(b.severidade.z);
-    if (za !== zb) { return zb - za; }
+    var ka = chaveZSeveridade(a.severidade.z);
+    var kb = chaveZSeveridade(b.severidade.z);
+    if (ka !== kb) { return ka - kb; }
     if (Number(a.zona) !== Number(b.zona)) { return Number(a.zona) - Number(b.zona); }
     return Number(a.secao) - Number(b.secao);
   }
@@ -186,7 +192,14 @@
     return Number(valor).toFixed(casas).replace('.', ',');
   }
 
+  function formatarInteiro(valor) {
+    return Number(valor).toLocaleString('pt-BR');
+  }
+
   function formatarObservado(achado) {
+    if (achado.unidade === 'votos') {
+      return formatarInteiro(achado.valor_observado) + ' votos';
+    }
     if (achado.unidade === 'pp') {
       return formatarDecimalComVirgula(achado.valor_observado, 1) + ' pp';
     }
@@ -194,6 +207,9 @@
   }
 
   function formatarReferencia(achado) {
+    if (achado.unidade === 'votos') {
+      return formatarInteiro(achado.valor_referencia) + ' votos (esperado)';
+    }
     var nivel = achado.nivel_referencia || achado.tipo_referencia;
     var texto = formatarDecimalComVirgula(achado.valor_referencia, 1);
     texto += achado.unidade === 'pp' ? ' pp' : '%';
@@ -266,9 +282,9 @@
     return 'secao.html#' + partes.join('&');
   }
 
-  function criarTdSecao(secao) {
+  function criarTdSecao(secao, quantidade) {
     var td = criarTd();
-    td.rowSpan = secao.achados.length;
+    td.rowSpan = quantidade;
     var link = document.createElement('a');
     link.className = 'link-secao';
     link.href = linkDetalhe(secao);
@@ -277,14 +293,13 @@
     return td;
   }
 
-  function criarLinhaAchado(secao, achado, primeira) {
+  function criarLinhaAchado(secao, quantidade, achado, primeira) {
     var linha = document.createElement('tr');
-    var quantidade = secao.achados.length;
 
     if (primeira) {
       linha.appendChild(criarTdAgrupado(secao.municipio, quantidade));
       linha.appendChild(criarTdAgrupado(String(secao.zona), quantidade));
-      linha.appendChild(criarTdSecao(secao));
+      linha.appendChild(criarTdSecao(secao, quantidade));
       linha.appendChild(criarTdAgrupado(secao.local, quantidade));
     }
 
@@ -320,8 +335,11 @@
 
     elementos.corpo.textContent = '';
     filtradas.forEach(function (item) {
+      var quantidade = item.achados.length;
       item.achados.forEach(function (achado, indice) {
-        elementos.corpo.appendChild(criarLinhaAchado(item.secao, achado, indice === 0));
+        elementos.corpo.appendChild(
+          criarLinhaAchado(item.secao, quantidade, achado, indice === 0)
+        );
       });
     });
 
